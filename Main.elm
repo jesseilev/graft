@@ -32,8 +32,8 @@ import Maybe.Extra as MaybeEx
 
 type DragAction
     = MoveNodeControl Graph.NodeId
-    | NewEdge (Graph.Node Element) Point2d
-    | EdgeChangeEndpoint Graph.NodeId Graph.NodeId
+    -- | NewEdge (Graph.Node Element) Point2d
+    | EdgeChangeEndNode (Graph.Edge Transformation) Point2d
     -- | EdgeChangeStartpoint Graph.NodeId Graph.NodeId
     -- | MoveElement Graph.NodeId
     -- | Pan
@@ -172,45 +172,51 @@ update msg model =
             { model | selectedItem = Nothing } ! []
 
         StartDragging dragAction ->
-            { model | dragAction = Just dragAction } ! []
-
-        StopDragging ->
-            case (model.dragAction, model.hoverItem) of
-                ( Just (NewEdge startNode endPoint)
-                , Just (Node endNode)
-                ) ->
+            let newModel = { model | dragAction = Just dragAction } in
+            case dragAction of
+                EdgeChangeEndNode edge _ ->
                     let
-                        newNodeCtx =
-                            Graph.NodeContext (newNode model) IntDict.empty IntDict.empty
-
-                        insertNewNodeIfHoveringOverNewNode =
-                            if endNode.id == nextId model.graph then
-                                Graph.insert newNodeCtx
-                            else
-                                identity
-
-                        newGraph =
-                            model.graph
-                                |> insertNewNodeIfHoveringOverNewNode
-                                |> insertEdge startNode.id endNode.id transformationEmpty
+                        insertTemps =
+                            Graph.insert (newNodeContext model)
+                                >> insertEdge edge
                     in
-                        { model | graph = newGraph, dragAction = Nothing } ! []
+                        { newModel | graph = insertTemps model.graph } ! []
 
                 _ ->
-                    { model | dragAction = Nothing } ! []
+                    newModel ! []
+
+        StopDragging ->
+            let updatedModel =
+                case ( model.dragAction, model.hoverItem ) of
+                    ( Just (EdgeChangeEndNode edge endPoint)
+                    , Just (Node endNode)
+                    ) ->
+                        let
+                            updatedEdge =
+                                { edge | to = endNode.id }
+
+                            replaceOldEdge =
+                                ListEx.replaceIf (edgeEquals edge) updatedEdge
+                        in
+                            { model | graph = updateEdges replaceOldEdge model.graph }
+
+                    _ ->
+                        model
+            in
+                cleanupTempNodesAndEdges updatedModel ! []
 
         OnDragBy vec ->
             case model.dragAction of
                 Just (MoveNodeControl nodeId) ->
                     moveNodeControl vec nodeId model ! []
 
-                Just (NewEdge startNode endPoint) ->
+                Just (EdgeChangeEndNode edge endPoint) ->
                     let
                         newEndPoint =
                             endPoint |> Point2d.translateBy vec
 
                         dragAction =
-                            NewEdge startNode newEndPoint
+                            EdgeChangeEndNode edge newEndPoint
                     in
                         { model | dragAction = Just dragAction } ! []
 
@@ -238,28 +244,59 @@ transformationEmpty =
     , rotation = 0
     }
 
+cleanupTempNodesAndEdges model =
+    let
+        removeHangingEdges =
+            updateEdges (List.filter (.to >> (/=) -1))
+
+        removeNeighborlessNodes =
+            updateNodes (List.filter (\n -> neighborCount model.graph n > 0))
+
+        cleanupGraph =
+            removeNeighborlessNodes >> removeHangingEdges
+    in
+        { model | graph = cleanupGraph model.graph }
+
+
+neighborCount graph node =
+    let adjCount = IntDict.keys >> List.length in
+    Graph.get node.id graph
+        |> Maybe.map
+            (\{incoming, outgoing} -> adjCount incoming + adjCount outgoing)
+        |> Maybe.withDefault 0
+        |> Debug.log "neighborcount"
+
 
 edgeEquals : Graph.Edge e -> Graph.Edge e -> Bool
 edgeEquals e1 e2 =
+    let
+        stuff =
+            (e1, e2, e1.from == e2.from && e1.to == e2.to)
+    in
     e1.from == e2.from && e1.to == e2.to
 
 
-insertEdge : Graph.NodeId -> Graph.NodeId -> e -> Graph n e -> Graph n e
-insertEdge fromNodeId toNodeId label graph =
-    let
-        newEdge =
-            { from = fromNodeId, to = toNodeId, label = label }
+updateNodes updater graph =
+    Graph.fromNodesAndEdges (updater (Graph.nodes graph)) (Graph.edges graph)
 
-        currentEdges =
-            Graph.edges graph
+updateEdges : (List (Graph.Edge e) -> List (Graph.Edge e)) -> Graph n e -> Graph n e
+updateEdges updater graph =
+    Graph.fromNodesAndEdges (Graph.nodes graph) (updater (Graph.edges graph))
+
+
+insertEdge : Graph.Edge e -> Graph n e -> Graph n e
+insertEdge newEdge graph =
+    let
+        alreadyExists =
+            ListEx.find (edgeEquals newEdge) (Graph.edges graph)
+                |> MaybeEx.isJust
+                |> Debug.log "edge already exists?"
 
         newEdges =
-            if ListEx.find (edgeEquals newEdge) currentEdges |> MaybeEx.isJust then
-                []
-            else
-                [ newEdge ]
+            if alreadyExists then [] else [ newEdge ]
     in
-        Graph.fromNodesAndEdges (Graph.nodes graph) (currentEdges ++ newEdges)
+        Graph.fromNodesAndEdges (Graph.nodes graph)
+            (Graph.edges graph ++ newEdges)
 
 
 moveNodeControl : Vector2d -> Graph.NodeId -> Model -> Model
@@ -318,6 +355,9 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
+    let
+        edgeCount = model.graph |> Graph.edges |> List.length |> Debug.log "edge cont"
+    in
     Html.div
         [ HtmlAttr.style containerStyle ]
         [ lazy viewStage model
@@ -336,15 +376,20 @@ viewControls model =
 
         newNodeAndNewEdge =
             case model.dragAction of
-                Just (NewEdge startNode endPoint) ->
+                Just (EdgeChangeEndNode edge endPoint) ->
                     let
+                        startNode =
+                            Graph.get edge.from model.graph
+
+                        outgoingPortLocation =
+                            .node >> nodeControlRect >> midRight
+
                         startPoint =
-                            startNode.label.controlLocation
-                                |> nodeControlRect
-                                |> midRight
+                            Maybe.map outgoingPortLocation startNode
+                                |> Maybe.withDefault Point2d.origin
                     in
-                        [ viewLineWithArrow startPoint endPoint []
-                        , viewNodeControl model (newNode model)
+                        [ --viewLineWithArrow startPoint endPoint []
+                        -- viewNodeControl model (newNode model)
                         ]
 
                 _ ->
@@ -356,70 +401,118 @@ viewControls model =
             , Svg.Events.onMouseUp StopDragging
             -- , Svg.Events.onClick Deselect
             ]
-            (nodeViews ++ edgeViews ++ newNodeAndNewEdge)
+            (nodeViews ++ edgeViews)
 
 
 newNode model =
     Graph.Node (nextId model.graph) (Element Color.black Point2d.origin)
 
+newNodeContext model =
+    Graph.NodeContext (newNode model) IntDict.empty IntDict.empty
 
 nextId =
     Graph.nodeIdRange >> Maybe.map Tuple.second >> Maybe.map ((+) 1) >> Maybe.withDefault 0
 
 
-viewLineWithArrow : Point2d -> Point2d -> List (Svg.Attribute Msg) -> Svg Msg
-viewLineWithArrow fromLocation toLocation attrs =
-    let
-        line =
-            LineSegment2d (fromLocation, toLocation)
+-- viewLineWithArrow : Point2d -> Point2d -> List (Svg.Attribute Msg) -> Svg Msg
+-- viewLineWithArrow fromLocation toLocation attrs =
+--     let
+--         line =
+--             LineSegment2d (fromLocation, toLocation)
+--
+--         lineView =
+--             Svg.lineSegment2d
+--                 ( attrs ++ [ Attr.stroke "grey", Attr.strokeDasharray "5,5" ] )
+--                 line
+--
+--         arrowView =
+--             LineSegment2d.direction line
+--                 |> Maybe.map
+--                     (arrowTriangle (LineSegment2d.interpolate line 0.75))
+--                 |> Maybe.map
+--                     ( Svg.triangle2d
+--                         [ Attr.fill "grey", Attr.stroke "#ccc"
+--                         , Draggable.mouseTrigger
+--                             ( EdgeChangeEndNode)
+--                         ]
+--                     )
+--                 |> Maybe.withDefault
+--                     (Svg.g [] [])
+--     in
+--         Svg.g [] [ lineView, arrowView ]
 
-        lineView =
-            Svg.lineSegment2d
-                ( attrs ++ [ Attr.stroke "grey", Attr.strokeDasharray "5,5" ] )
-                line
+incomingPortLocation =
+    nodeControlRect >> midLeft
 
-        arrowView =
-            LineSegment2d.direction line
-                |> Maybe.map
-                    (arrowTriangle (LineSegment2d.interpolate line 0.75))
-                |> Maybe.map
-                    (Svg.triangle2d [ Attr.fill "grey", Attr.stroke "#ccc"])
-                |> Maybe.withDefault
-                    (Svg.g [] [])
-    in
-        Svg.g [] [ lineView, arrowView ]
+
+outgoingPortLocation =
+    nodeControlRect >> midRight
 
 
 viewEdgeControl : Model -> Graph.Edge Transformation -> Svg Msg
 viewEdgeControl model edge =
-    case
-        ( Graph.get edge.from model.graph
-        , Graph.get edge.to model.graph
-        )
-        of
-        (Just fromNodeContext, Just toNodeContext) ->
-            let
-                fromLocation =
-                    fromNodeContext.node.label.controlLocation
-                        |> nodeControlRect
-                        |> midRight
+    let
+        lineView =
+            Svg.lineSegment2d [ Attr.stroke "grey", Attr.strokeDasharray "5,5" ]
 
-                toLocation =
-                    toNodeContext.node.label.controlLocation
-                        |> nodeControlRect
-                        |> midLeft
+        arrowLocation =
+            flip LineSegment2d.interpolate 0.75
 
-                -- isSelected =
-                --     Maybe.map (edgeEquals edge) model.selectedEdge
-                --         |> Maybe.withDefault False
-            in
-                viewLineWithArrow fromLocation toLocation
-                    [ Svg.Events.onClick <| Select (Edge edge)
-                    -- , Attr.stroke <| if isSelected then "grey" else "yellow"
-                    ]
+        arrowView lineSeg =
+            LineSegment2d.direction lineSeg
+                |> Maybe.map
+                    (arrowTriangle <| arrowLocation lineSeg)
+                |> Maybe.map
+                    ( Svg.triangle2d
+                        [ Attr.fill "grey", Attr.stroke "grey"
+                        , Draggable.mouseTrigger
+                            (EdgeChangeEndNode edge (arrowLocation lineSeg))
+                            DragMsg
+                        ]
+                    )
+                |> Maybe.withDefault
+                    (Svg.g [] [])
 
-        _ ->
-            Svg.g [] []
+        edgeView lineSeg =
+            Svg.g
+                [ Svg.Events.onClick <| Select (Edge edge) ]
+                [ lineView lineSeg
+                , arrowView lineSeg
+                ]
+
+        getNode =
+            flip Graph.get model.graph
+
+        specialDragEndpoint =
+            case model.dragAction of
+                Just (EdgeChangeEndNode e endpoint) ->
+                    if edgeEquals e edge then Just endpoint else Nothing
+
+                _ ->
+                    Nothing
+
+        edgeCount =
+            Graph.edges model.graph |> List.length --|> Debug.log "edge count"
+    in
+        case ( getNode edge.from, getNode edge.to, specialDragEndpoint ) of
+            ( Just fromCtx, Just toCtx, Nothing ) ->
+                edgeView
+                    ( LineSegment2d
+                        ( outgoingPortLocation fromCtx.node
+                        , incomingPortLocation toCtx.node
+                        )
+                    )
+
+            ( Just fromCtx, _, Just endpoint ) ->
+                edgeView
+                    ( LineSegment2d
+                        ( outgoingPortLocation fromCtx.node
+                        , endpoint
+                        )
+                    )
+
+            _ ->
+                Svg.g [] []
 
 
 arrowTriangle : Point2d -> Direction2d -> Triangle2d
@@ -452,7 +545,7 @@ viewNodeControl model node =
             model.hoverItem == Just (Node node) && not isSelected
 
         rect =
-            nodeControlRect node.label.controlLocation
+            nodeControlRect node
 
         inboundEdgePort =
             Circle2d { radius = controlSize / 12, centerPoint = midLeft rect }
@@ -478,7 +571,11 @@ viewNodeControl model node =
         , Svg.circle2d [ Attr.fill "grey"] inboundEdgePort
         , Svg.circle2d
             [ Attr.fill "grey"
-            , Draggable.mouseTrigger (NewEdge node (midRight rect)) DragMsg
+            , Draggable.mouseTrigger
+                ( EdgeChangeEndNode (Graph.Edge node.id -1 transformationEmpty)
+                    (midRight rect)
+                )
+                DragMsg
             ]
             outboundEdgePort
         , Svg.circle2d
@@ -492,9 +589,12 @@ viewNodeControl model node =
 
 controlSize = 80
 
-nodeControlRect location =
+nodeControlRect node =
     rectangle2d 0 0 controlSize controlSize
-        |> Polygon2d.translateBy (Vector2d (Point2d.coordinates location))
+        |> Polygon2d.translateBy
+            ( Vector2d
+                ( Point2d.coordinates node.label.controlLocation)
+            )
 
 
 nodeCardStyle model node =
