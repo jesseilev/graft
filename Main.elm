@@ -203,7 +203,9 @@ update msg model =
                     _ ->
                         model
             in
-                cleanupTempNodesAndEdges updatedModel ! []
+                { updatedModel | dragAction = Nothing }
+                    |> cleanupTempNodesAndEdges
+                    |> flip (,) Cmd.none
 
         OnDragBy vec ->
             case model.dragAction of
@@ -557,15 +559,15 @@ viewNodeControl model node =
         [ Svg.Events.onClick (Select (Node node))
         , Svg.Events.onMouseOver (MouseHover (Node node))
         , Svg.Events.onMouseOut MouseLeave
-        , Attr.cursor <| if isSelected then "move" else ""
+        , Attr.cursor <| if MaybeEx.isNothing model.dragAction then "move" else ""
         , Draggable.mouseTrigger (MoveNodeControl node.id) DragMsg
         -- , Attr.opacity "0.5"
         ]
         [ Svg.polygon2d
             [ Attr.fill "#ccc"
             , Attr.stroke "#09f"
-            , Attr.strokeDasharray <| if isHovering then "5, 5" else ""
-            , Attr.strokeWidth <| if isSelected || isHovering then "3px" else "0"
+            -- , Attr.strokeDasharray <| if isHovering then "5, 5" else ""
+            , Attr.strokeWidth "0" --<| if isSelected || isHovering then "3px" else "0"
             ]
             rect
         , Svg.circle2d [ Attr.fill "grey"] inboundEdgePort
