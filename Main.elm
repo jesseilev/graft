@@ -320,7 +320,7 @@ view : Model -> Html Msg
 view model =
     Html.div
         [ HtmlAttr.style containerStyle ]
-        [ lazy viewFractal model
+        [ lazy viewStage model
         , viewControls model
         ]
 
@@ -375,7 +375,7 @@ viewLineWithArrow fromLocation toLocation attrs =
 
         lineView =
             Svg.lineSegment2d
-                ( attrs ++ [ ] )
+                ( attrs ++ [ Attr.stroke "grey", Attr.strokeDasharray "5,5" ] )
                 line
 
         arrowView =
@@ -536,8 +536,8 @@ containerStyle =
 (=>) = (,)
 
 
-viewFractal : Model -> Html Msg
-viewFractal model =
+viewStage : Model -> Html Msg
+viewStage model =
     svg
         [ Attr.viewBox <| svgViewBoxString rootSize rootSize
         , HtmlAttr.style
