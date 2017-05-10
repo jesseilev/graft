@@ -3,6 +3,7 @@ module Main exposing (..)
 import Color exposing (Color)
 import Html exposing (Html)
 import Html.Attributes as HtmlAttr
+import Html.Events
 import Dict exposing (Dict)
 import Svg exposing (Svg, svg)
 import Svg.Attributes as Attr
@@ -28,6 +29,8 @@ import Draggable.Events as DragEvents
 import Keyboard.Extra as KeyEx
 import List.Extra as ListEx
 import Maybe.Extra as MaybeEx
+
+import Graph.Extra as GraphEx
 
 
 type DragAction
@@ -139,6 +142,7 @@ type Msg
     | StartDragging DragAction
     | StopDragging
     | Delete
+    | ChangeColor (Graph.Node Element) String
     | NoOp
 
 
@@ -188,7 +192,7 @@ update msg model =
                             let
                                 insertTemps =
                                     Graph.insert (newNodeContext model)
-                                        >> insertEdge edge
+                                        >> GraphEx.insertEdge edge
                             in
                                 { model | graph = insertTemps model.graph }
 
@@ -211,9 +215,9 @@ update msg model =
                                 { edge | to = endNode.id }
 
                             replaceOldEdge =
-                                ListEx.replaceIf (edgeEquals edge) updatedEdge
+                                ListEx.replaceIf (GraphEx.edgeEquals edge) updatedEdge
                         in
-                            { model | graph = updateEdges replaceOldEdge model.graph }
+                            { model | graph = GraphEx.updateEdges replaceOldEdge model.graph }
 
                     _ ->
                         model
@@ -251,6 +255,19 @@ update msg model =
                 _ ->
                     update NoOp model
 
+        ChangeColor node colorStr ->
+            let
+                stringToColor =
+                    Result.withDefault Color.black << hexToColor
+
+                updateLabel ({label} as n) =
+                    { n | label = { label | color = (stringToColor colorStr) } }
+            in
+                { model
+                    | graph =
+                        GraphEx.updateNode node.id updateLabel model.graph
+                } ! []
+
         _ ->
             model ! []
 
@@ -264,56 +281,16 @@ transformationEmpty =
 cleanupTempNodesAndEdges model =
     let
         removeHangingEdges =
-            updateEdges (List.filter (.to >> (/=) -1))
+            GraphEx.updateEdges (List.filter (.to >> (/=) -1))
 
         removeNeighborlessNodes =
-            updateNodes (List.filter (\n -> neighborCount model.graph n > 0))
+            GraphEx.updateNodes
+                (List.filter (\n -> GraphEx.neighborCount model.graph n > 0))
 
         cleanupGraph =
             removeNeighborlessNodes >> removeHangingEdges
     in
         { model | graph = cleanupGraph model.graph }
-
-
-neighborCount graph node =
-    let adjCount = IntDict.keys >> List.length in
-    Graph.get node.id graph
-        |> Maybe.map
-            (\{incoming, outgoing} -> adjCount incoming + adjCount outgoing)
-        |> Maybe.withDefault 0
-        |> Debug.log "neighborcount"
-
-
-edgeEquals : Graph.Edge e -> Graph.Edge e -> Bool
-edgeEquals e1 e2 =
-    let
-        stuff =
-            (e1, e2, e1.from == e2.from && e1.to == e2.to)
-    in
-    e1.from == e2.from && e1.to == e2.to
-
-
-updateNodes updater graph =
-    Graph.fromNodesAndEdges (updater (Graph.nodes graph)) (Graph.edges graph)
-
-updateEdges : (List (Graph.Edge e) -> List (Graph.Edge e)) -> Graph n e -> Graph n e
-updateEdges updater graph =
-    Graph.fromNodesAndEdges (Graph.nodes graph) (updater (Graph.edges graph))
-
-
-insertEdge : Graph.Edge e -> Graph n e -> Graph n e
-insertEdge newEdge graph =
-    let
-        alreadyExists =
-            ListEx.find (edgeEquals newEdge) (Graph.edges graph)
-                |> MaybeEx.isJust
-                |> Debug.log "edge already exists?"
-
-        newEdges =
-            if alreadyExists then [] else [ newEdge ]
-    in
-        Graph.fromNodesAndEdges (Graph.nodes graph)
-            (Graph.edges graph ++ newEdges)
 
 
 moveNodeControl : Vector2d -> Graph.Node Element -> Model -> Model
@@ -325,16 +302,10 @@ moveNodeControl vec node model =
                     Point2d.translateBy vec element.controlLocation
             }
 
-        updateNode node =
+        updater node =
             { node | label = updateElement node.label }
-
-        updateNodeContext =
-            Maybe.map (\ctx -> { ctx | node = updateNode ctx.node })
-
-        updateGraph =
-            Graph.update node.id updateNodeContext
     in
-        { model | graph = updateGraph model.graph }
+        { model | graph = GraphEx.updateNode node.id updater model.graph }
 
 
 -- getGraphItem : DragAction -> Maybe Graph.NodeId
@@ -372,9 +343,6 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    let
-        edgeCount = model.graph |> Graph.edges |> List.length |> Debug.log "edge cont"
-    in
     Html.div
         [ HtmlAttr.style containerStyle ]
         [ lazy viewStage model
@@ -384,38 +352,68 @@ view model =
 
 viewControls : Model -> Html Msg
 viewControls model =
+    Html.section
+        [ HtmlAttr.style
+            [ "order" => "1"
+            , "display" => "grid"
+            , "grid-template-rows" => "70% 30%"
+            , "grid-template-columns" => "100%"
+            ]
+        ]
+        [ viewDraggableControls model
+        -- , Html.hr [ HtmlAttr.style [ "border-top" => "1px solid #ccc" ] ] []
+        , viewDetailControls model
+        ]
+
+
+viewDetailControls : Model -> Html Msg
+viewDetailControls model =
+    Html.section
+        [ HtmlAttr.style
+            [ "background" => "#ddd"
+            , "padding" => "20px"
+            ]
+        ]
+        [ case model.selectedItem of
+            Just (Node node) ->
+                viewNodeDetailControl model node
+
+            Just (Edge edge) ->
+                Html.text ""
+
+            _ ->
+                Html.text ""
+        ]
+
+
+viewNodeDetailControl model node =
+    Html.fieldset
+        []
+        [ Html.label [] [ Html.text "Color" ]
+        , Html.input
+            [ HtmlAttr.type_ "color"
+            , HtmlAttr.value (colorToHex node.label.color)
+            , Html.Events.onInput (ChangeColor node)
+            ]
+            []
+        ]
+
+
+viewDraggableControls : Model -> Html Msg
+viewDraggableControls model =
     let
         nodeViews =
             List.map (viewNodeControl model) (Graph.nodes model.graph)
 
         edgeViews =
             List.map (viewEdgeControl model) (Graph.edges model.graph)
-
-        newNodeAndNewEdge =
-            case model.dragAction of
-                Just (EdgeChangeEndNode edge endPoint) ->
-                    let
-                        startNode =
-                            Graph.get edge.from model.graph
-
-                        outgoingPortLocation =
-                            .node >> nodeControlRect >> midRight
-
-                        startPoint =
-                            Maybe.map outgoingPortLocation startNode
-                                |> Maybe.withDefault Point2d.origin
-                    in
-                        [ --viewLineWithArrow startPoint endPoint []
-                        -- viewNodeControl model (newNode model)
-                        ]
-
-                _ ->
-                    []
     in
         svg
             [ Attr.viewBox <| svgViewBoxString rootSize rootSize
-            , HtmlAttr.style controlsStyle
             , Svg.Events.onMouseUp StopDragging
+            , HtmlAttr.style
+                [ "background" => "#eee"
+                ]
             -- , Svg.Events.onClick Deselect
             ]
             (edgeViews ++ nodeViews)
@@ -430,33 +428,6 @@ newNodeContext model =
 nextId =
     Graph.nodeIdRange >> Maybe.map Tuple.second >> Maybe.map ((+) 1) >> Maybe.withDefault 0
 
-
--- viewLineWithArrow : Point2d -> Point2d -> List (Svg.Attribute Msg) -> Svg Msg
--- viewLineWithArrow fromLocation toLocation attrs =
---     let
---         line =
---             LineSegment2d (fromLocation, toLocation)
---
---         lineView =
---             Svg.lineSegment2d
---                 ( attrs ++ [ Attr.stroke "grey", Attr.strokeDasharray "5,5" ] )
---                 line
---
---         arrowView =
---             LineSegment2d.direction line
---                 |> Maybe.map
---                     (arrowTriangle (LineSegment2d.interpolate line 0.75))
---                 |> Maybe.map
---                     ( Svg.triangle2d
---                         [ Attr.fill "grey", Attr.stroke "#ccc"
---                         , Draggable.mouseTrigger
---                             ( EdgeChangeEndNode)
---                         ]
---                     )
---                 |> Maybe.withDefault
---                     (Svg.g [] [])
---     in
---         Svg.g [] [ lineView, arrowView ]
 
 incomingPortLocation =
     nodeControlRect >> midLeft
@@ -516,7 +487,7 @@ viewEdgeControl model edge =
         specialDragEndpoint =
             case model.dragAction of
                 Just (EdgeChangeEndNode e endpoint) ->
-                    if edgeEquals e edge then Just endpoint else Nothing
+                    if GraphEx.edgeEquals e edge then Just endpoint else Nothing
 
                 _ ->
                     Nothing
@@ -644,21 +615,10 @@ nodeCardStyle model node =
         ]
 
 
-controlsStyle =
-    [ "order" => "1"
-    -- , "flex-basis" => "75%"
-    , "flex-grow" => "1"
-    , "padding" => "20px"
-    -- , "background" => "red"
-    -- , "position" => "absolute"
-    -- , "left" => "20px"
-    -- , "top" => "20px"
-    -- , "width" => "100px"
-    ]
-
-
 containerStyle =
-    [ "display" => "flex"
+    [ "display" => "grid"
+    , "grid-template-columns" => "60% 40%"
+    , "grid-template-rows" => "100%"
     , "height" => "100%"
     ]
 
@@ -672,12 +632,6 @@ viewStage model =
         [ Attr.viewBox <| svgViewBoxString rootSize rootSize
         , HtmlAttr.style
             [ "background" => "grey"
-            -- , "flex-basis" => "75%"
-            , "flex-grow" => "2"
-            -- , "position" => "relative"
-            -- , "order" => "0"
-            -- , "width" => "75%"
-            -- , "margin" => "20px"
             ]
         ]
         [ lazy viewRoot model ]
@@ -694,7 +648,7 @@ rootSize =
 viewRoot model =
     let halfSize = rootSize / 2 in
     lazy (viewElement 1 model) model.rootId
-        |> Svg.scaleAbout Point2d.origin (halfSize / 2 * model.zoomScale)
+        |> Svg.scaleAbout Point2d.origin (halfSize * 0.75 * model.zoomScale)
         |> Svg.translateBy (Vector2d (halfSize, halfSize))
 
 
@@ -714,7 +668,7 @@ viewElement cumulativeScale model id =
                 parent =
                     Svg.circle2d
                         [ Attr.fill (colorToHex element.color)
-                        , Attr.opacity "0.85"
+                        , Attr.opacity "0.5"
                         -- , Svg.Events.onMouseOver ( MouseHover (StageNode node) )
                         ]
                         unitCircle
