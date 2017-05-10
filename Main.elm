@@ -31,7 +31,7 @@ import Maybe.Extra as MaybeEx
 
 
 type DragAction
-    = MoveNodeControl Graph.NodeId
+    = MoveNodeControl (Graph.Node Element)
     -- | NewEdge (Graph.Node Element) Point2d
     | EdgeChangeEndNode (Graph.Edge Transformation) Point2d
     -- | EdgeChangeStartpoint Graph.NodeId Graph.NodeId
@@ -150,6 +150,15 @@ dragConfig =
         ]
 
 
+dragItem dragAction =
+    case dragAction of
+        MoveNodeControl node ->
+            Node node
+
+        EdgeChangeEndNode edge _ ->
+            Edge edge
+
+
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
@@ -172,18 +181,24 @@ update msg model =
             { model | selectedItem = Nothing } ! []
 
         StartDragging dragAction ->
-            let newModel = { model | dragAction = Just dragAction } in
-            case dragAction of
-                EdgeChangeEndNode edge _ ->
-                    let
-                        insertTemps =
-                            Graph.insert (newNodeContext model)
-                                >> insertEdge edge
-                    in
-                        { newModel | graph = insertTemps model.graph } ! []
+            let
+                newModel =
+                    case dragAction of
+                        EdgeChangeEndNode edge _ ->
+                            let
+                                insertTemps =
+                                    Graph.insert (newNodeContext model)
+                                        >> insertEdge edge
+                            in
+                                { model | graph = insertTemps model.graph }
 
-                _ ->
-                    newModel ! []
+                        _ ->
+                            model
+            in
+                { newModel
+                    | dragAction = Just dragAction
+                    , selectedItem = Just (dragItem dragAction)
+                } ! []
 
         StopDragging ->
             let updatedModel =
@@ -209,8 +224,8 @@ update msg model =
 
         OnDragBy vec ->
             case model.dragAction of
-                Just (MoveNodeControl nodeId) ->
-                    moveNodeControl vec nodeId model ! []
+                Just (MoveNodeControl node) ->
+                    moveNodeControl vec node model ! []
 
                 Just (EdgeChangeEndNode edge endPoint) ->
                     let
@@ -301,8 +316,8 @@ insertEdge newEdge graph =
             (Graph.edges graph ++ newEdges)
 
 
-moveNodeControl : Vector2d -> Graph.NodeId -> Model -> Model
-moveNodeControl vec nodeId model =
+moveNodeControl : Vector2d -> Graph.Node Element -> Model -> Model
+moveNodeControl vec node model =
     let
         updateElement element =
             { element
@@ -317,7 +332,7 @@ moveNodeControl vec nodeId model =
             Maybe.map (\ctx -> { ctx | node = updateNode ctx.node })
 
         updateGraph =
-            Graph.update nodeId updateNodeContext
+            Graph.update node.id updateNodeContext
     in
         { model | graph = updateGraph model.graph }
 
@@ -403,7 +418,7 @@ viewControls model =
             , Svg.Events.onMouseUp StopDragging
             -- , Svg.Events.onClick Deselect
             ]
-            (nodeViews ++ edgeViews)
+            (edgeViews ++ nodeViews)
 
 
 newNode model =
@@ -454,8 +469,15 @@ outgoingPortLocation =
 viewEdgeControl : Model -> Graph.Edge Transformation -> Svg Msg
 viewEdgeControl model edge =
     let
+        isSelected =
+            model.selectedItem == Just (Edge edge)
+
         lineView =
-            Svg.lineSegment2d [ Attr.stroke "grey", Attr.strokeDasharray "5,5" ]
+            Svg.lineSegment2d
+                [ Attr.stroke "grey"
+                , Attr.strokeWidth "1px"
+                , Attr.strokeDasharray "5,5"
+                ]
 
         arrowLocation =
             flip LineSegment2d.interpolate 0.75
@@ -478,8 +500,14 @@ viewEdgeControl model edge =
         edgeView lineSeg =
             Svg.g
                 [ Svg.Events.onClick <| Select (Edge edge) ]
-                [ lineView lineSeg
-                , arrowView lineSeg
+                [ Svg.lineSegment2d
+                    [ Attr.opacity <| if isSelected then "1" else "0"
+                    , Attr.strokeWidth "10px"
+                    , Attr.stroke "yellow"
+                    ]
+                    lineSeg
+                , lineView lineSeg
+                , if isSelected then arrowView lineSeg else Svg.g [] []
                 ]
 
         getNode =
@@ -559,15 +587,14 @@ viewNodeControl model node =
         [ Svg.Events.onClick (Select (Node node))
         , Svg.Events.onMouseOver (MouseHover (Node node))
         , Svg.Events.onMouseOut MouseLeave
-        , Attr.cursor <| if MaybeEx.isNothing model.dragAction then "move" else ""
-        , Draggable.mouseTrigger (MoveNodeControl node.id) DragMsg
-        -- , Attr.opacity "0.5"
+        , Draggable.mouseTrigger (MoveNodeControl node) DragMsg
+        , Attr.stroke "yellow"
+        , Attr.strokeWidth <| if isSelected || isHovering then "4px" else "0"
+        -- , Attr.opacity "0.7"
         ]
         [ Svg.polygon2d
             [ Attr.fill "#ccc"
-            , Attr.stroke "#09f"
-            -- , Attr.strokeDasharray <| if isHovering then "5, 5" else ""
-            , Attr.strokeWidth "0" --<| if isSelected || isHovering then "3px" else "0"
+            , Attr.cursor <| if MaybeEx.isNothing model.dragAction then "move" else ""
             ]
             rect
         , Svg.circle2d [ Attr.fill "grey"] inboundEdgePort
@@ -582,6 +609,7 @@ viewNodeControl model node =
             outboundEdgePort
         , Svg.circle2d
             [ Attr.fill (colorToHex node.label.color)
+            , Attr.cursor <| if MaybeEx.isNothing model.dragAction then "move" else ""
             , Attr.opacity "0.5"
             ]
             (Circle2d
