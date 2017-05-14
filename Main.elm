@@ -51,8 +51,8 @@ type DragAction
 
 type Selectable
     = StageNode (Graph.Node Element)
-    | Node (Graph.Node Element)
-    | Edge (Graph.Edge Transformation)
+    | Node Graph.NodeId
+    | Edge Graph.NodeId Graph.NodeId
     | Arrowhead (Graph.Edge Transformation)
     | ArrowTail (Graph.Edge Transformation)
     | Incoming (Graph.Node Element)
@@ -90,10 +90,10 @@ init =
         Graph.fromNodesAndEdges
             [ Graph.Node 0
                 { color = Color.rgb 100 0 200
-                , controlLocation = Point2d (0,0)
+                , controlLocation = Point2d (300,0)
                 }
             , Graph.Node 1
-                { color = Color.red
+                { color = Color.rgb 0 40 60
                 , controlLocation = Point2d (120, 120)
                 }
             , Graph.Node 2
@@ -102,22 +102,22 @@ init =
                 }
             ]
             [ Graph.Edge 0 1
-                { translation = ( 0.5, 120 )
+                { translation = ( 0, 0.5 )
                 , scale = 0.5
                 , rotation = 0
                 }
             , Graph.Edge 1 0
-                { translation = ( 1, -90 )
+                { translation = ( 1, -0.5 )
                 , scale = 0.75
-                , rotation = 0
+                , rotation = 120
                 }
             , Graph.Edge 1 2
-                { translation = ( -1, -60 )
+                { translation = ( 0, -0.75 )
                 , scale = 0.5
                 , rotation = 0
                 }
             , Graph.Edge 2 0
-                { translation = ( 0, 0 )
+                { translation = ( 0, -0.5 )
                 , scale = 0.5
                 , rotation = 0
                 }
@@ -143,6 +143,10 @@ type Msg
     | StopDragging
     | Delete
     | ChangeColor (Graph.Node Element) String
+    | ChangeScale (Graph.Edge Transformation) Float
+    | ChangeRotation (Graph.Edge Transformation) Float
+    | TranslationX (Graph.Edge Transformation) Float
+    | TranslationY (Graph.Edge Transformation) Float
     | NoOp
 
 
@@ -157,10 +161,10 @@ dragConfig =
 dragItem dragAction =
     case dragAction of
         MoveNodeControl node ->
-            Node node
+            Node node.id
 
         EdgeChangeEndNode edge _ ->
-            Edge edge
+            Edge edge.from edge.to
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -208,11 +212,11 @@ update msg model =
             let updatedModel =
                 case ( model.dragAction, model.hoverItem ) of
                     ( Just (EdgeChangeEndNode edge endPoint)
-                    , Just (Node endNode)
+                    , Just (Node endNodeID)
                     ) ->
                         let
                             updatedEdge =
-                                { edge | to = endNode.id }
+                                { edge | to = endNodeID }
 
                             replaceOldEdge =
                                 ListEx.replaceIf (GraphEx.edgeEquals edge) updatedEdge
@@ -249,8 +253,8 @@ update msg model =
 
         Delete ->
             case model.selectedItem of
-                Just (Node node) ->
-                    { model | graph = Graph.remove node.id model.graph } ! []
+                Just (Node nodeId) ->
+                    { model | graph = Graph.remove nodeId model.graph } ! []
 
                 _ ->
                     update NoOp model
@@ -267,6 +271,59 @@ update msg model =
                     | graph =
                         GraphEx.updateNode node.id updateLabel model.graph
                 } ! []
+
+        ChangeScale edge newScale ->
+            let
+                edgeUpdater ( {label} as e ) =
+                    { e | label = { label | scale = newScale } }
+
+                graphUpdater =
+                    GraphEx.updateEdge edge.from edge.to edgeUpdater
+            in
+                { model | graph = graphUpdater model.graph } ! []
+
+        ChangeRotation edge newRotation ->
+            let
+                edgeUpdater ( {label} as e ) =
+                    { e | label = { label | rotation = newRotation } }
+
+                graphUpdater =
+                    GraphEx.updateEdge edge.from edge.to edgeUpdater
+            in
+                { model | graph = graphUpdater model.graph } ! []
+
+        TranslationX edge newX ->
+            let
+                translationUpdater =
+                    Tuple.mapFirst (\_ -> newX)
+
+                edgeUpdater ( {label} as e ) =
+                    { e | label =
+                        { label | translation = translationUpdater label.translation }
+                    }
+
+                graphUpdater =
+                    GraphEx.updateEdge edge.from edge.to edgeUpdater
+            in
+                { model | graph = graphUpdater model.graph } ! []
+
+
+        TranslationY edge newY ->
+            -- TODO same as TranslationX so refactor
+            let
+                translationUpdater =
+                    Tuple.mapSecond (\_ -> newY)
+
+                edgeUpdater ( {label} as e ) =
+                    { e | label =
+                        { label | translation = translationUpdater label.translation }
+                    }
+
+                graphUpdater =
+                    GraphEx.updateEdge edge.from edge.to edgeUpdater
+            in
+                { model | graph = graphUpdater model.graph } ! []
+
 
         _ ->
             model ! []
@@ -375,18 +432,89 @@ viewDetailControls model =
             ]
         ]
         [ case model.selectedItem of
-            Just (Node node) ->
-                viewNodeDetailControl model node
+            Just (Node nodeId) ->
+                acceptMaybe (Html.text "") (viewNodeDetail model)
+                    <| GraphEx.getNode nodeId model.graph
 
-            Just (Edge edge) ->
-                Html.text ""
+
+            Just (Edge from to) ->
+                (viewEdgeDetail model |> acceptMaybe (Html.text ""))
+                    <| GraphEx.getEdge from to model.graph
 
             _ ->
                 Html.text ""
         ]
 
 
-viewNodeDetailControl model node =
+acceptMaybe : b -> (a -> b) -> Maybe a -> b
+acceptMaybe default func =
+    Maybe.map func >> Maybe.withDefault default
+
+
+viewEdgeDetail model edge =
+    let
+        msgFromString : (Float -> Msg) -> String -> Msg
+        msgFromString msgConstructor =
+            String.toFloat
+                >> Result.map msgConstructor
+                >> Result.withDefault NoOp
+    in
+        Html.div []
+            [ Html.label []
+                [ Html.text "Scale: "
+                , Html.input
+                    [ HtmlAttr.type_ "range"
+                    , HtmlAttr.value (.scale edge.label |> toString)
+                    , HtmlAttr.step "0.01"
+                    , HtmlAttr.min "0"
+                    , HtmlAttr.max "0.9"
+                    , Html.Events.onInput (ChangeScale edge |> msgFromString)
+                    ]
+                    []
+                ]
+            , Html.br [] []
+            , Html.label []
+                [ Html.text "X: "
+                , Html.input
+                    [ HtmlAttr.type_ "range"
+                    , HtmlAttr.value (.translation edge.label |> Tuple.first |> toString)
+                    , HtmlAttr.step "0.05"
+                    , HtmlAttr.min "-2"
+                    , HtmlAttr.max "2"
+                    , Html.Events.onInput (TranslationX edge |> msgFromString)
+                    ]
+                    []
+                ]
+            , Html.br [] []
+            , Html.label []
+                [ Html.text "Y: "
+                , Html.input
+                    [ HtmlAttr.type_ "range"
+                    , HtmlAttr.value (.translation edge.label |> Tuple.second |> toString)
+                    , HtmlAttr.step "0.05"
+                    , HtmlAttr.min "-2"
+                    , HtmlAttr.max "2"
+                    , Html.Events.onInput (TranslationY edge |> msgFromString)
+                    ]
+                    []
+                ]
+            , Html.br [] []
+            , Html.label []
+                [ Html.text "Rotation: "
+                , Html.input
+                    [ HtmlAttr.type_ "range"
+                    , HtmlAttr.value (.rotation edge.label |> toString)
+                    , HtmlAttr.step "5"
+                    , HtmlAttr.min "0"
+                    , HtmlAttr.max "360"
+                    , Html.Events.onInput (ChangeRotation edge |> msgFromString)
+                    ]
+                    []
+                ]
+            ]
+
+
+viewNodeDetail model node =
     Html.fieldset
         []
         [ Html.label [] [ Html.text "Color" ]
@@ -416,7 +544,7 @@ viewDraggableControls model =
                 ]
             -- , Svg.Events.onClick Deselect
             ]
-            (edgeViews ++ nodeViews)
+            (nodeViews ++ edgeViews)
 
 
 newNode model =
@@ -441,7 +569,7 @@ viewEdgeControl : Model -> Graph.Edge Transformation -> Svg Msg
 viewEdgeControl model edge =
     let
         isSelected =
-            model.selectedItem == Just (Edge edge)
+            model.selectedItem == Just (Edge edge.from edge.to)
 
         lineView =
             Svg.lineSegment2d
@@ -470,7 +598,7 @@ viewEdgeControl model edge =
 
         edgeView lineSeg =
             Svg.g
-                [ Svg.Events.onClick <| Select (Edge edge) ]
+                [ Svg.Events.onClick <| Select (Edge edge.from edge.to) ]
                 [ Svg.lineSegment2d
                     [ Attr.opacity <| if isSelected then "1" else "0"
                     , Attr.strokeWidth "10px"
@@ -540,10 +668,10 @@ viewNodeControl : Model -> Graph.Node Element -> Svg Msg
 viewNodeControl model node =
     let
         isSelected =
-            model.selectedItem == Just (Node node)
+            model.selectedItem == Just (Node node.id)
 
         isHovering =
-            model.hoverItem == Just (Node node) && not isSelected
+            model.hoverItem == Just (Node node.id) && not isSelected
 
         rect =
             nodeControlRect node
@@ -555,8 +683,8 @@ viewNodeControl model node =
             Circle2d { radius = controlSize / 12, centerPoint = midRight rect }
     in
     Svg.g
-        [ Svg.Events.onClick (Select (Node node))
-        , Svg.Events.onMouseOver (MouseHover (Node node))
+        [ Svg.Events.onClick (Select (Node node.id))
+        , Svg.Events.onMouseOver (MouseHover (Node node.id))
         , Svg.Events.onMouseOut MouseLeave
         , Draggable.mouseTrigger (MoveNodeControl node) DragMsg
         , Attr.stroke "yellow"
@@ -656,7 +784,7 @@ viewElement : Float -> Model -> Graph.NodeId -> Svg Msg
 viewElement cumulativeScale model id =
     case
         ( Graph.get id model.graph
-        , cumulativeScale * model.zoomScale * rootSize >= 10
+        , cumulativeScale * model.zoomScale * rootSize >= 4
         -- , cumulativeScale * rootSize <= rootSize
         )
         of
@@ -680,8 +808,13 @@ viewElement cumulativeScale model id =
                     viewElement (newScale transformation) model childId
                         |> Svg.scaleAbout Point2d.origin
                             (clamp 0 1 transformation.scale)
+                        |> Svg.rotateAround Point2d.origin
+                            (degrees transformation.rotation)
                         |> Svg.translateBy
-                            (transformation.translation |> toVector2d)
+                            ( transformation.translation
+                                |> Vector2d
+                                -- |> vector2dFromPolar
+                            )
 
                 children =
                     nodeContext.outgoing
@@ -757,7 +890,7 @@ unitCircle =
         }
 
 
-toVector2d (radius, angle) =
+vector2dFromPolar (radius, angle) =
     Vector2d <| fromPolar (radius, degrees angle)
 
 

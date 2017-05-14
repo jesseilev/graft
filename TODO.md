@@ -2,10 +2,10 @@
 
 ## Features
 
-- [ ] { N } detail view (rudimentary)
+- [x] { N } detail view (rudimentary)
 - [ ] { N } nice css on detail view
 - [ ] { N } Delete
-- [ ] { N } better starting positions of control nodes
+- [x] { N } better starting positions of control nodes
 - [ ] { n } starter template examples
 - [ ] { n } ports above and below midpoint
 - [ ] { n } opacity
@@ -28,6 +28,6 @@
 ## Implementation
 - [ ] { N } max recursive drawing depth
 - [ ] { n } use Monocle or equivalent
-- [ ] { N } translation based on x,y
+- [x] { N } translation based on x,y
 - [ ] { N } organize helper functions
 - [ ] { n } more .Extra helper modules

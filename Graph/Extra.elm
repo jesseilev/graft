@@ -6,6 +6,15 @@ import List.Extra as ListEx
 import Maybe.Extra as MaybeEx
 
 
+getEdge : Graph.NodeId -> Graph.NodeId -> Graph n e -> Maybe (Graph.Edge e)
+getEdge from to =
+    Graph.edges >> ListEx.find (edgeEqualsFromTo from to)
+
+
+getNode nodeId =
+    Graph.get nodeId >> Maybe.map .node
+
+
 neighborCount graph node =
     let adjCount = IntDict.keys >> List.length in
     Graph.get node.id graph
@@ -15,21 +24,28 @@ neighborCount graph node =
         |> Debug.log "neighborcount"
 
 
+edgeEqualsFromTo from to edge =
+    edge.from == from && edge.to == to
+
+
 edgeEquals : Graph.Edge e -> Graph.Edge e -> Bool
-edgeEquals e1 e2 =
-    let
-        stuff =
-            (e1, e2, e1.from == e2.from && e1.to == e2.to)
-    in
-    e1.from == e2.from && e1.to == e2.to
+edgeEquals edge =
+    edgeEqualsFromTo edge.from edge.to
 
 
 updateNode id updater =
-    updateNodes (List.map (\n -> if n.id == id then updater n else n))
+    updateNodes
+        <| List.map (\n -> if n.id == id then updater n else n)
 
 
 updateNodes updater graph =
     Graph.fromNodesAndEdges (updater (Graph.nodes graph)) (Graph.edges graph)
+
+
+updateEdge from to updater =
+    updateEdges
+        <| List.map (\e -> if edgeEqualsFromTo from to e then updater e else e)
+
 
 updateEdges : (List (Graph.Edge e) -> List (Graph.Edge e)) -> Graph n e -> Graph n e
 updateEdges updater graph =
