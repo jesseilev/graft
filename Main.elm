@@ -461,19 +461,6 @@ viewEdgeDetail model edge =
     in
         Html.div []
             [ Html.label []
-                [ Html.text "Scale: "
-                , Html.input
-                    [ HtmlAttr.type_ "range"
-                    , HtmlAttr.value (.scale edge.label |> toString)
-                    , HtmlAttr.step "0.01"
-                    , HtmlAttr.min "0"
-                    , HtmlAttr.max "0.9"
-                    , Html.Events.onInput (ChangeScale edge |> msgFromString)
-                    ]
-                    []
-                ]
-            , Html.br [] []
-            , Html.label []
                 [ Html.text "X: "
                 , Html.input
                     [ HtmlAttr.type_ "range"
@@ -500,6 +487,19 @@ viewEdgeDetail model edge =
                 ]
             , Html.br [] []
             , Html.label []
+                [ Html.text "Scale: "
+                , Html.input
+                    [ HtmlAttr.type_ "range"
+                    , HtmlAttr.value (.scale edge.label |> toString)
+                    , HtmlAttr.step "0.01"
+                    , HtmlAttr.min "0"
+                    , HtmlAttr.max "0.9"
+                    , Html.Events.onInput (ChangeScale edge |> msgFromString)
+                    ]
+                    []
+                ]
+            , Html.br [] []
+            , Html.label []
                 [ Html.text "Rotation: "
                 , Html.input
                     [ HtmlAttr.type_ "range"
@@ -515,15 +515,20 @@ viewEdgeDetail model edge =
 
 
 viewNodeDetail model node =
-    Html.fieldset
-        []
-        [ Html.label [] [ Html.text "Color" ]
-        , Html.input
-            [ HtmlAttr.type_ "color"
-            , HtmlAttr.value (colorToHex node.label.color)
-            , Html.Events.onInput (ChangeColor node)
+    Html.div []
+        [ Html.label []
+            [ Html.text "Color: "
+            , Html.input
+                [ HtmlAttr.type_ "color"
+                , HtmlAttr.value (colorToHex node.label.color)
+                , Html.Events.onInput (ChangeColor node)
+                ]
+                []
             ]
-            []
+        , Html.button
+            [ Html.Events.onClick Delete
+            ]
+            [ Html.text "Delete" ]
         ]
 
 
@@ -699,6 +704,7 @@ viewNodeControl model node =
         , Svg.circle2d [ Attr.fill "grey"] inboundEdgePort
         , Svg.circle2d
             [ Attr.fill "grey"
+            , Attr.cursor "alias"
             , Draggable.mouseTrigger
                 ( EdgeChangeEndNode (Graph.Edge node.id -1 transformationEmpty)
                     (midRight rect)
