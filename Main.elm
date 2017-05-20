@@ -72,6 +72,7 @@ type alias Model =
 
 type alias Element =
     { color : Color
+    , opacity : Float
     , controlLocation : Point2d
     }
 
@@ -90,14 +91,17 @@ init =
         Graph.fromNodesAndEdges
             [ Graph.Node 0
                 { color = Color.rgb 100 0 200
+                , opacity = 0.5
                 , controlLocation = Point2d (300,0)
                 }
             , Graph.Node 1
                 { color = Color.rgb 0 40 60
+                , opacity = 0.25
                 , controlLocation = Point2d (120, 120)
                 }
             , Graph.Node 2
                 { color = Color.rgb 200 100 0
+                , opacity = 0.75
                 , controlLocation = Point2d (210, 240)
                 }
             ]
@@ -143,6 +147,7 @@ type Msg
     | StopDragging
     | Delete
     | ChangeColor (Graph.Node Element) String
+    | ChangeOpacity (Graph.Node Element) Float
     | ChangeScale (Graph.Edge Transformation) Float
     | ChangeRotation (Graph.Edge Transformation) Float
     | TranslationX (Graph.Edge Transformation) Float
@@ -269,6 +274,16 @@ update msg model =
 
                 updateLabel ({label} as n) =
                     { n | label = { label | color = (stringToColor colorStr) } }
+            in
+                { model
+                    | graph =
+                        GraphEx.updateNode node.id updateLabel model.graph
+                } ! []
+
+        ChangeOpacity node opacity ->
+            let
+                updateLabel ({label} as n) =
+                    { n | label = { label | opacity = opacity } }
             in
                 { model
                     | graph =
@@ -455,66 +470,66 @@ acceptMaybe default func =
 
 
 viewEdgeDetail model edge =
-    let
-        msgFromString : (Float -> Msg) -> String -> Msg
-        msgFromString msgConstructor =
-            String.toFloat
-                >> Result.map msgConstructor
-                >> Result.withDefault NoOp
-    in
-        Html.div []
-            [ Html.label []
-                [ Html.text "X: "
-                , Html.input
-                    [ HtmlAttr.type_ "range"
-                    , HtmlAttr.value (.translation edge.label |> Tuple.first |> toString)
-                    , HtmlAttr.step "0.05"
-                    , HtmlAttr.min "-2"
-                    , HtmlAttr.max "2"
-                    , Html.Events.onInput (TranslationX edge |> msgFromString)
-                    ]
-                    []
+    Html.div []
+        [ Html.label []
+            [ Html.text "X: "
+            , Html.input
+                [ HtmlAttr.type_ "range"
+                , HtmlAttr.value (.translation edge.label |> Tuple.first |> toString)
+                , HtmlAttr.step "0.05"
+                , HtmlAttr.min "-2"
+                , HtmlAttr.max "2"
+                , Html.Events.onInput (TranslationX edge |> msgFromString)
                 ]
-            , Html.br [] []
-            , Html.label []
-                [ Html.text "Y: "
-                , Html.input
-                    [ HtmlAttr.type_ "range"
-                    , HtmlAttr.value (.translation edge.label |> Tuple.second |> toString)
-                    , HtmlAttr.step "0.05"
-                    , HtmlAttr.min "-2"
-                    , HtmlAttr.max "2"
-                    , Html.Events.onInput (TranslationY edge |> msgFromString)
-                    ]
-                    []
-                ]
-            , Html.br [] []
-            , Html.label []
-                [ Html.text "Scale: "
-                , Html.input
-                    [ HtmlAttr.type_ "range"
-                    , HtmlAttr.value (.scale edge.label |> toString)
-                    , HtmlAttr.step "0.01"
-                    , HtmlAttr.min "0"
-                    , HtmlAttr.max "0.9"
-                    , Html.Events.onInput (ChangeScale edge |> msgFromString)
-                    ]
-                    []
-                ]
-            , Html.br [] []
-            , Html.label []
-                [ Html.text "Rotation: "
-                , Html.input
-                    [ HtmlAttr.type_ "range"
-                    , HtmlAttr.value (.rotation edge.label |> toString)
-                    , HtmlAttr.step "5"
-                    , HtmlAttr.min "0"
-                    , HtmlAttr.max "360"
-                    , Html.Events.onInput (ChangeRotation edge |> msgFromString)
-                    ]
-                    []
-                ]
+                []
             ]
+        , Html.br [] []
+        , Html.label []
+            [ Html.text "Y: "
+            , Html.input
+                [ HtmlAttr.type_ "range"
+                , HtmlAttr.value (.translation edge.label |> Tuple.second |> toString)
+                , HtmlAttr.step "0.05"
+                , HtmlAttr.min "-2"
+                , HtmlAttr.max "2"
+                , Html.Events.onInput (TranslationY edge |> msgFromString)
+                ]
+                []
+            ]
+        , Html.br [] []
+        , Html.label []
+            [ Html.text "Scale: "
+            , Html.input
+                [ HtmlAttr.type_ "range"
+                , HtmlAttr.value (.scale edge.label |> toString)
+                , HtmlAttr.step "0.01"
+                , HtmlAttr.min "0"
+                , HtmlAttr.max "0.9"
+                , Html.Events.onInput (ChangeScale edge |> msgFromString)
+                ]
+                []
+            ]
+        , Html.br [] []
+        , Html.label []
+            [ Html.text "Rotation: "
+            , Html.input
+                [ HtmlAttr.type_ "range"
+                , HtmlAttr.value (.rotation edge.label |> toString)
+                , HtmlAttr.step "5"
+                , HtmlAttr.min "0"
+                , HtmlAttr.max "360"
+                , Html.Events.onInput (ChangeRotation edge |> msgFromString)
+                ]
+                []
+            ]
+        ]
+
+
+msgFromString : (Float -> Msg) -> String -> Msg
+msgFromString msgConstructor =
+    String.toFloat
+        >> Result.map msgConstructor
+        >> Result.withDefault NoOp
 
 
 viewNodeDetail model node =
@@ -526,6 +541,20 @@ viewNodeDetail model node =
                     [ HtmlAttr.type_ "color"
                     , HtmlAttr.value (colorToHex node.label.color)
                     , Html.Events.onInput (ChangeColor node)
+                    ]
+                    []
+                ]
+            ]
+        , Html.fieldset []
+            [ Html.label []
+                [ Html.text "Opacity: "
+                , Html.input
+                    [ HtmlAttr.type_ "range"
+                    , HtmlAttr.min "0"
+                    , HtmlAttr.max "1"
+                    , HtmlAttr.step "0.05"
+                    , HtmlAttr.value (toString node.label.opacity)
+                    , Html.Events.onInput (msgFromString (ChangeOpacity node))
                     ]
                     []
                 ]
@@ -560,7 +589,7 @@ viewDraggableControls model =
 
 
 newNode model =
-    Graph.Node (nextId model.graph) (Element Color.black Point2d.origin)
+    Graph.Node (nextId model.graph) (Element Color.grey 0.5 Point2d.origin)
 
 newNodeContext model =
     Graph.NodeContext (newNode model) IntDict.empty IntDict.empty
@@ -708,17 +737,17 @@ viewNodeControl model node =
             [ Attr.fill "#ccc"
             , Attr.cursor <| if MaybeEx.isNothing model.dragAction then "move" else ""
             , Attr.stroke "grey"
-            , Attr.strokeWidth <| if isHovering then "2px" else "0"
+            , Attr.strokeWidth <| if isHovering || isSelected then "2px" else "0"
             , Draggable.mouseTrigger (MoveNodeControl node) DragMsg
             ]
             rect
         , Svg.circle2d
             [ Attr.fill (colorToHex node.label.color)
+            , Attr.opacity <| toString node.label.opacity
             , Attr.cursor <| if MaybeEx.isNothing model.dragAction then "pointer" else ""
             , Svg.Events.onClick (Select (Node node.id))
             , Svg.Events.onMouseOver (MouseHover (Node node.id))
             , Svg.Events.onMouseOut MouseLeave
-            , Attr.opacity "0.75"
             ]
             (Circle2d
                 { radius = controlSize * 3 / 8, centerPoint = centroid rect }
@@ -821,7 +850,7 @@ viewElement cumulativeScale model id =
                 parent =
                     Svg.circle2d
                         [ Attr.fill (colorToHex element.color)
-                        , Attr.opacity "0.5"
+                        , Attr.opacity (toString element.opacity)
                         -- , Svg.Events.onMouseOver ( MouseHover (StageNode node) )
                         ]
                         unitCircle
