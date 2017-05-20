@@ -205,7 +205,7 @@ update msg model =
             in
                 { newModel
                     | dragAction = Just dragAction
-                    , selectedItem = Just (dragItem dragAction)
+                    -- , selectedItem = Just (dragItem dragAction)
                 } ! []
 
         StopDragging ->
@@ -221,7 +221,10 @@ update msg model =
                             replaceOldEdge =
                                 ListEx.replaceIf (GraphEx.edgeEquals edge) updatedEdge
                         in
-                            { model | graph = GraphEx.updateEdges replaceOldEdge model.graph }
+                            { model
+                                | graph = GraphEx.updateEdges replaceOldEdge model.graph
+                                , selectedItem = Just (Edge updatedEdge.from updatedEdge.to)
+                            }
 
                     _ ->
                         model
@@ -516,19 +519,23 @@ viewEdgeDetail model edge =
 
 viewNodeDetail model node =
     Html.div []
-        [ Html.label []
-            [ Html.text "Color: "
-            , Html.input
-                [ HtmlAttr.type_ "color"
-                , HtmlAttr.value (colorToHex node.label.color)
-                , Html.Events.onInput (ChangeColor node)
+        [ Html.fieldset []
+            [ Html.label []
+                [ Html.text "Color: "
+                , Html.input
+                    [ HtmlAttr.type_ "color"
+                    , HtmlAttr.value (colorToHex node.label.color)
+                    , Html.Events.onInput (ChangeColor node)
+                    ]
+                    []
                 ]
-                []
             ]
-        , Html.button
-            [ Html.Events.onClick Delete
+        , Html.fieldset []
+            [ Html.button
+                [ Html.Events.onClick Delete
+                ]
+                [ Html.text "Delete" ]
             ]
-            [ Html.text "Delete" ]
         ]
 
 
@@ -563,11 +570,11 @@ nextId =
 
 
 incomingPortLocation =
-    nodeControlRect >> midLeft
+    nodeControlRect >> edgeLeft >> flip LineSegment2d.interpolate 0.2
 
 
 outgoingPortLocation =
-    nodeControlRect >> midRight
+    nodeControlRect >> edgeRight >> flip LineSegment2d.interpolate 0.8
 
 
 viewEdgeControl : Model -> Graph.Edge Transformation -> Svg Msg
@@ -593,6 +600,7 @@ viewEdgeControl model edge =
                 |> Maybe.map
                     ( Svg.triangle2d
                         [ Attr.fill "grey", Attr.stroke "grey"
+                        , Attr.cursor "alias"
                         , Draggable.mouseTrigger
                             (EdgeChangeEndNode edge (arrowLocation lineSeg))
                             DragMsg
@@ -606,8 +614,9 @@ viewEdgeControl model edge =
                 [ Svg.Events.onClick <| Select (Edge edge.from edge.to) ]
                 [ Svg.lineSegment2d
                     [ Attr.opacity <| if isSelected then "1" else "0"
-                    , Attr.strokeWidth "10px"
+                    , Attr.strokeWidth "6px"
                     , Attr.stroke "yellow"
+                    , Attr.cursor <| if isSelected then "default" else "pointer"
                     ]
                     lineSeg
                 , lineView lineSeg
@@ -678,30 +687,48 @@ viewNodeControl model node =
         isHovering =
             model.hoverItem == Just (Node node.id) && not isSelected
 
+        isBeingDraggedTo =
+            case model.dragAction of
+                Just (EdgeChangeEndNode _ _) -> isHovering
+                _ -> False
+
         rect =
             nodeControlRect node
 
         inboundEdgePort =
-            Circle2d { radius = controlSize / 12, centerPoint = midLeft rect }
+            Circle2d { radius = controlSize / 10, centerPoint = incomingPortLocation node }
 
         outboundEdgePort =
-            Circle2d { radius = controlSize / 12, centerPoint = midRight rect }
+            Circle2d { radius = controlSize / 10, centerPoint = outgoingPortLocation node }
     in
     Svg.g
-        [ Svg.Events.onClick (Select (Node node.id))
-        , Svg.Events.onMouseOver (MouseHover (Node node.id))
-        , Svg.Events.onMouseOut MouseLeave
-        , Draggable.mouseTrigger (MoveNodeControl node) DragMsg
-        , Attr.stroke "yellow"
-        , Attr.strokeWidth <| if isSelected || isHovering then "4px" else "0"
-        -- , Attr.opacity "0.7"
+        [ Attr.opacity <| if isSelected then "1" else "0.5"
         ]
         [ Svg.polygon2d
             [ Attr.fill "#ccc"
             , Attr.cursor <| if MaybeEx.isNothing model.dragAction then "move" else ""
+            , Attr.stroke "grey"
+            , Attr.strokeWidth <| if isHovering then "2px" else "0"
+            , Draggable.mouseTrigger (MoveNodeControl node) DragMsg
             ]
             rect
-        , Svg.circle2d [ Attr.fill "grey"] inboundEdgePort
+        , Svg.circle2d
+            [ Attr.fill (colorToHex node.label.color)
+            , Attr.cursor <| if MaybeEx.isNothing model.dragAction then "pointer" else ""
+            , Svg.Events.onClick (Select (Node node.id))
+            , Svg.Events.onMouseOver (MouseHover (Node node.id))
+            , Svg.Events.onMouseOut MouseLeave
+            , Attr.opacity "0.75"
+            ]
+            (Circle2d
+                { radius = controlSize * 3 / 8, centerPoint = centroid rect }
+            )
+        , Svg.circle2d
+            [ Attr.fill "grey"
+            , Attr.stroke "grey"
+            , Attr.strokeWidth <| if isBeingDraggedTo then "10px" else "0"
+            ]
+            inboundEdgePort
         , Svg.circle2d
             [ Attr.fill "grey"
             , Attr.cursor "alias"
@@ -712,14 +739,6 @@ viewNodeControl model node =
                 DragMsg
             ]
             outboundEdgePort
-        , Svg.circle2d
-            [ Attr.fill (colorToHex node.label.color)
-            , Attr.cursor <| if MaybeEx.isNothing model.dragAction then "move" else ""
-            , Attr.opacity "0.5"
-            ]
-            (Circle2d
-                { radius = controlSize * 3 / 8, centerPoint = centroid rect }
-            )
         ]
 
 controlSize = 80
@@ -868,17 +887,29 @@ bottomLeft =
 bottomRight =
     pointFromPolygon BoundingBox2d.maxX BoundingBox2d.maxY
 
+edgeTop poly =
+    curry LineSegment2d (topLeft poly) (topRight poly)
+
+edgeLeft poly =
+    curry LineSegment2d (topLeft poly) (bottomLeft poly)
+
+edgeRight poly =
+    curry LineSegment2d (topRight poly) (bottomRight poly)
+
+edgeBottom poly =
+    curry LineSegment2d (bottomLeft poly) (bottomRight poly)
+
 midLeft =
-    pointFromPolygon BoundingBox2d.minX BoundingBox2d.midY
+    LineSegment2d.midpoint << edgeLeft
 
 midRight =
-    pointFromPolygon BoundingBox2d.maxX BoundingBox2d.midY
+    LineSegment2d.midpoint << edgeRight
 
 midTop =
-    pointFromPolygon BoundingBox2d.midX BoundingBox2d.minY
+    LineSegment2d.midpoint << edgeTop
 
 midBottom =
-    pointFromPolygon BoundingBox2d.midX BoundingBox2d.maxY
+    LineSegment2d.midpoint << edgeBottom
 
 
 rectangle2d x y w h =
