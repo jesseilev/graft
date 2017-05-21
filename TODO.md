@@ -2,8 +2,8 @@
 
 ## Bugs
 
-- [ ] { N } cross-browser grid css
-- [ ] { N } deleting the root node gets you stuck
+- [ ] { n } safari grid css
+- [ ] { n } deleting the root node gets you stuck
 
 ## Features
 

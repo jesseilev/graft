@@ -432,12 +432,41 @@ view model =
         [ HtmlAttr.style
             [ "display" => "grid"
             , "grid-template-columns" => "60% 40%"
-            , "grid-template-rows" => "100%"
+            -- , "grid-template-rows" => "100%"
             , "height" => "100%"
             ]
         ]
-        [ lazy viewStage model
+        [
+        lazy viewStage model
         , viewControls model
+        -- , Html.div
+        --     [ HtmlAttr.style
+        --         [ "display" => "grid"
+        --         , "grid-template-rows" => "70% 30%"
+        --         -- , "grid-template-rows" => "100%"
+        --         , "height" => "100%"
+        --         , "background" => "yellow"
+        --         ]
+        --     ]
+        --     [ Html.div [] [ Html.text "control1" ]
+        --     , Html.div [] [ Html.text "control2" ]
+        --     ]
+        ]
+
+
+viewStage : Model -> Html Msg
+viewStage model =
+    Html.section
+        [ HtmlAttr.style [ "background" => "blue" ] ]
+        [ svg
+            [ Attr.viewBox <| svgViewBoxString rootSize rootSize
+            , HtmlAttr.style
+                [ "background" => "grey"
+                , "height" => "100%"
+                , "width" => "100%"
+                ]
+            ]
+            [ lazy viewRoot model ]
         ]
 
 
@@ -448,7 +477,7 @@ viewControls model =
             [ "order" => "1"
             , "display" => "grid"
             , "grid-template-rows" => "70% 30%"
-            , "grid-template-columns" => "100%"
+            -- , "grid-template-columns" => "100%"
             ]
         ]
         [ viewDraggableControls model
@@ -589,15 +618,19 @@ viewDraggableControls model =
         edgeViews =
             List.map (viewEdgeControl model) (Graph.edges model.graph)
     in
-        svg
-            [ Attr.viewBox <| svgViewBoxString rootSize rootSize
-            , Svg.Events.onMouseUp StopDragging
-            , HtmlAttr.style
-                [ "background" => "#eee"
+        Html.section []
+            [ svg
+                [ Attr.viewBox <| svgViewBoxString rootSize rootSize
+                , Svg.Events.onMouseUp StopDragging
+                , HtmlAttr.style
+                    [ "background" => "#eee"
+                    , "height" => "100%"
+                    , "width" => "100%"
+                    ]
+                -- , Svg.Events.onClick Deselect
                 ]
-            -- , Svg.Events.onClick Deselect
+                (nodeViews ++ edgeViews)
             ]
-            (nodeViews ++ edgeViews)
 
 
 newNode model =
@@ -811,16 +844,6 @@ nodeCardStyle model node =
 
 (=>) = (,)
 
-
-viewStage : Model -> Html Msg
-viewStage model =
-    svg
-        [ Attr.viewBox <| svgViewBoxString rootSize rootSize
-        , HtmlAttr.style
-            [ "background" => "grey"
-            ]
-        ]
-        [ lazy viewRoot model ]
 
 
 svgViewBoxString w h =
