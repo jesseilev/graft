@@ -73,8 +73,15 @@ type alias Model =
 type alias Element =
     { color : Color
     , opacity : Float
+    , shape : Shape
     , controlLocation : Point2d
     }
+
+
+type Shape
+    = Circle
+    | Square
+    | Triangle
 
 
 type alias Transformation =
@@ -92,38 +99,41 @@ init =
             [ Graph.Node 0
                 { color = Color.rgb 100 0 200
                 , opacity = 0.5
+                , shape = Triangle
                 , controlLocation = Point2d (300,0)
                 }
             , Graph.Node 1
                 { color = Color.rgb 0 40 60
                 , opacity = 0.25
+                , shape = Square
                 , controlLocation = Point2d (120, 120)
                 }
             , Graph.Node 2
                 { color = Color.rgb 200 100 0
-                , opacity = 0.75
+                , opacity = 0.5
+                , shape = Circle
                 , controlLocation = Point2d (210, 240)
                 }
             ]
             [ Graph.Edge 0 1
-                { translation = ( 0, 0.5 )
+                { translation = ( 0, 0 )
                 , scale = 0.5
                 , rotation = 0
                 }
             , Graph.Edge 1 0
-                { translation = ( 1, -0.5 )
-                , scale = 0.75
-                , rotation = 120
+                { translation = ( 1, 0 )
+                , scale = 0.7
+                , rotation = 135
                 }
             , Graph.Edge 1 2
-                { translation = ( 0, -0.75 )
-                , scale = 0.5
-                , rotation = 0
+                { translation = ( -0.25, 0.25 )
+                , scale = 0.25
+                , rotation = -135
                 }
             , Graph.Edge 2 0
-                { translation = ( 0, -0.5 )
-                , scale = 0.5
-                , rotation = 0
+                { translation = ( -0.25, -0.25 )
+                , scale = 0.25
+                , rotation = 90
                 }
             ]
     , zoomScale = 1
@@ -419,7 +429,13 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
     Html.div
-        [ HtmlAttr.style containerStyle ]
+        [ HtmlAttr.style
+            [ "display" => "grid"
+            , "grid-template-columns" => "60% 40%"
+            , "grid-template-rows" => "100%"
+            , "height" => "100%"
+            ]
+        ]
         [ lazy viewStage model
         , viewControls model
         ]
@@ -471,9 +487,8 @@ acceptMaybe default func =
 
 viewEdgeDetail model edge =
     Html.div []
-        [ Html.label []
-            [ Html.text "X: "
-            , Html.input
+        [ fieldsetView "X: "
+            <| Html.input
                 [ HtmlAttr.type_ "range"
                 , HtmlAttr.value (.translation edge.label |> Tuple.first |> toString)
                 , HtmlAttr.step "0.05"
@@ -482,11 +497,8 @@ viewEdgeDetail model edge =
                 , Html.Events.onInput (TranslationX edge |> msgFromString)
                 ]
                 []
-            ]
-        , Html.br [] []
-        , Html.label []
-            [ Html.text "Y: "
-            , Html.input
+        , fieldsetView "Y: "
+            <| Html.input
                 [ HtmlAttr.type_ "range"
                 , HtmlAttr.value (.translation edge.label |> Tuple.second |> toString)
                 , HtmlAttr.step "0.05"
@@ -495,11 +507,8 @@ viewEdgeDetail model edge =
                 , Html.Events.onInput (TranslationY edge |> msgFromString)
                 ]
                 []
-            ]
-        , Html.br [] []
-        , Html.label []
-            [ Html.text "Scale: "
-            , Html.input
+        , fieldsetView "Scale: "
+            <| Html.input
                 [ HtmlAttr.type_ "range"
                 , HtmlAttr.value (.scale edge.label |> toString)
                 , HtmlAttr.step "0.01"
@@ -508,11 +517,8 @@ viewEdgeDetail model edge =
                 , Html.Events.onInput (ChangeScale edge |> msgFromString)
                 ]
                 []
-            ]
-        , Html.br [] []
-        , Html.label []
-            [ Html.text "Rotation: "
-            , Html.input
+        , fieldsetView "Rotation: "
+            <| Html.input
                 [ HtmlAttr.type_ "range"
                 , HtmlAttr.value (.rotation edge.label |> toString)
                 , HtmlAttr.step "5"
@@ -521,7 +527,13 @@ viewEdgeDetail model edge =
                 , Html.Events.onInput (ChangeRotation edge |> msgFromString)
                 ]
                 []
-            ]
+        ]
+
+
+fieldsetView labelText child =
+    Html.fieldset []
+        [ Html.label [] [ Html.text labelText ]
+        , child
         ]
 
 
@@ -589,7 +601,7 @@ viewDraggableControls model =
 
 
 newNode model =
-    Graph.Node (nextId model.graph) (Element Color.grey 0.5 Point2d.origin)
+    Graph.Node (nextId model.graph) (Element Color.white 0.5 Circle Point2d.origin)
 
 newNodeContext model =
     Graph.NodeContext (newNode model) IntDict.empty IntDict.empty
@@ -614,9 +626,9 @@ viewEdgeControl model edge =
 
         lineView =
             Svg.lineSegment2d
-                [ Attr.stroke "grey"
-                , Attr.strokeWidth "1px"
-                , Attr.strokeDasharray "5,5"
+                [ Attr.stroke "grey" --<| if isSelected then "yellow" else "grey"
+                , Attr.strokeWidth <| if isSelected then "2px" else "1px"
+                , Attr.strokeDasharray <| if isSelected then "" else "5,5"
                 ]
 
         arrowLocation =
@@ -642,8 +654,8 @@ viewEdgeControl model edge =
             Svg.g
                 [ Svg.Events.onClick <| Select (Edge edge.from edge.to) ]
                 [ Svg.lineSegment2d
-                    [ Attr.opacity <| if isSelected then "1" else "0"
-                    , Attr.strokeWidth "6px"
+                    [ Attr.opacity <| if isSelected then "0" else "0"
+                    , Attr.strokeWidth "10px"
                     , Attr.stroke "yellow"
                     , Attr.cursor <| if isSelected then "default" else "pointer"
                     ]
@@ -797,14 +809,6 @@ nodeCardStyle model node =
         ]
 
 
-containerStyle =
-    [ "display" => "grid"
-    , "grid-template-columns" => "60% 40%"
-    , "grid-template-rows" => "100%"
-    , "height" => "100%"
-    ]
-
-
 (=>) = (,)
 
 
@@ -847,13 +851,31 @@ viewElement cumulativeScale model id =
                 element =
                     nodeContext.node.label
 
+                parentAttrs =
+                    [ Attr.fill (colorToHex element.color)
+                    , Attr.opacity (toString element.opacity)
+                    -- , Svg.Events.onMouseOver ( MouseHover (StageNode node) )
+                    ]
+
+                parentShape =
+                    case nodeContext.node.label.shape of
+                        Circle ->
+                            flip Svg.circle2d unitCircle
+
+                        Square ->
+                            flip Svg.polygon2d (rectangle2d -1 -1 2 2)
+
+                        Triangle ->
+                            flip Svg.triangle2d
+                                <| Triangle2d
+                                    ( Point2d ( -1, -1 )
+                                    , Point2d ( -1, 1 )
+                                    , Point2d ( 1, -1 )
+                                    )
+
+
                 parent =
-                    Svg.circle2d
-                        [ Attr.fill (colorToHex element.color)
-                        , Attr.opacity (toString element.opacity)
-                        -- , Svg.Events.onMouseOver ( MouseHover (StageNode node) )
-                        ]
-                        unitCircle
+                    parentShape parentAttrs
 
                 newScale transformation =
                     transformation.scale * cumulativeScale

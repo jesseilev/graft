@@ -1,7 +1,15 @@
 # TODO
 
+## Bugs
+
+- [ ] { N } cross-browser grid css
+- [ ] { N } deleting the root node gets you stuck
+
 ## Features
 
+- [ ] { N } shape picker
+- [ ] { N } basic zoom by clicking
+- [ ] { N } easier to grab outgoing port
 - [x] { N } detail view (rudimentary)
 - [ ] { N } nice css on detail view
 - [x] { N } Delete
@@ -14,14 +22,14 @@
 - [x] { N } better selection / hover semantics
     - [x] { i } 'move' cursor on arrowhead
     - [ ] { i } tool palette e.g. select, resize, fill, etc
-- [ ] { n } other shapes
+- [x] { n } other shapes
 - [ ] { i } zoom and pan on stage
 - [ ] { n } direct manipulation on stage
 - [ ] { n } bezier edges
 - [ ] { n } animate edge direction
 - [ ] { n } detail navigation
 - [ ] { n } user-created animations
-- [ ] { n } custom anchor points
+- [ ] { n } custom anchor points for alignment
 - [ ] { n } save and share
 
 
