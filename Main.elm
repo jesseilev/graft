@@ -11,6 +11,7 @@ import Svg.Events
 import Svg.Lazy exposing (lazy)
 import Keyboard
 import Char
+import Json.Decode as Decode exposing (Decoder)
 
 import OpenSolid.Svg as Svg
 import OpenSolid.Geometry.Types exposing (..)
@@ -20,6 +21,7 @@ import OpenSolid.LineSegment2d as LineSegment2d
 import OpenSolid.Direction2d as Direction2d
 import OpenSolid.Polygon2d as Polygon2d
 import OpenSolid.BoundingBox2d as BoundingBox2d
+import OpenSolid.Frame2d as Frame2d
 -- import Transformer2D exposing (Transformation)
 import Color.Convert exposing (..)
 import Graph as Graph exposing (Graph)
@@ -122,7 +124,7 @@ init =
                 }
             , Graph.Edge 1 0
                 { translation = ( 1, 0 )
-                , scale = 0.7
+                , scale = 1 / (sqrt 2)
                 , rotation = 135
                 }
             , Graph.Edge 1 2
@@ -158,10 +160,12 @@ type Msg
     | Delete
     | ChangeColor (Graph.Node Element) String
     | ChangeOpacity (Graph.Node Element) Float
+    | ChangeShape (Graph.Node Element) String
     | ChangeScale (Graph.Edge Transformation) Float
     | ChangeRotation (Graph.Edge Transformation) Float
     | TranslationX (Graph.Edge Transformation) Float
     | TranslationY (Graph.Edge Transformation) Float
+    | Zoomba Decode.Value
     | NoOp
 
 
@@ -190,6 +194,10 @@ update msg model =
 
         ZoomOut ->
             { model | zoomScale = model.zoomScale / 1.05 } ! []
+
+        Zoomba jsonStr ->
+            let s = jsonStr |> Debug.log "zoomba" in 
+            model ! []
 
         MouseHover graphItem ->
             { model | hoverItem = Just graphItem } ! []
@@ -294,6 +302,22 @@ update msg model =
             let
                 updateLabel ({label} as n) =
                     { n | label = { label | opacity = opacity } }
+            in
+                { model
+                    | graph =
+                        GraphEx.updateNode node.id updateLabel model.graph
+                } ! []
+
+        ChangeShape node shapeStr ->
+            let
+                updateLabel ({label} as n) =
+                    { n | label = { label | shape = shape } }
+
+                shape =
+                    case shapeStr of
+                        "Circle" -> Circle
+                        "Triangle" -> Triangle
+                        _ -> Square
             in
                 { model
                     | graph =
@@ -434,6 +458,8 @@ view model =
             , "grid-template-columns" => "60% 40%"
             -- , "grid-template-rows" => "100%"
             , "height" => "100%"
+            , "font-family" => "Sans-serif"
+            , "color" => "grey"
             ]
         ]
         [
@@ -457,14 +483,14 @@ view model =
 viewStage : Model -> Html Msg
 viewStage model =
     Html.section
-        [ HtmlAttr.style [ "background" => "blue" ] ]
+        [ HtmlAttr.style [ "background" => "grey", "cursor" => "pointer" ] ]
         [ svg
             [ Attr.viewBox <| svgViewBoxString rootSize rootSize
             , HtmlAttr.style
-                [ "background" => "grey"
-                , "height" => "100%"
+                [ "height" => "100%"
                 , "width" => "100%"
                 ]
+            , Html.Events.on "click" (Decode.map Zoomba Decode.value)
             ]
             [ lazy viewRoot model ]
         ]
@@ -476,8 +502,8 @@ viewControls model =
         [ HtmlAttr.style
             [ "order" => "1"
             , "display" => "grid"
-            , "grid-template-rows" => "70% 30%"
-            -- , "grid-template-columns" => "100%"
+            , "grid-template-rows" => "65% 35%"
+                -- if model.selectedItem == Nothing then "100% 0" else "65% 35%"
             ]
         ]
         [ viewDraggableControls model
@@ -515,52 +541,72 @@ acceptMaybe default func =
 
 
 viewEdgeDetail model edge =
-    Html.div []
-        [ fieldsetView "X: "
-            <| Html.input
-                [ HtmlAttr.type_ "range"
-                , HtmlAttr.value (.translation edge.label |> Tuple.first |> toString)
-                , HtmlAttr.step "0.05"
-                , HtmlAttr.min "-2"
-                , HtmlAttr.max "2"
-                , Html.Events.onInput (TranslationX edge |> msgFromString)
-                ]
-                []
-        , fieldsetView "Y: "
-            <| Html.input
-                [ HtmlAttr.type_ "range"
-                , HtmlAttr.value (.translation edge.label |> Tuple.second |> toString)
-                , HtmlAttr.step "0.05"
-                , HtmlAttr.min "-2"
-                , HtmlAttr.max "2"
-                , Html.Events.onInput (TranslationY edge |> msgFromString)
-                ]
-                []
-        , fieldsetView "Scale: "
-            <| Html.input
-                [ HtmlAttr.type_ "range"
-                , HtmlAttr.value (.scale edge.label |> toString)
-                , HtmlAttr.step "0.01"
-                , HtmlAttr.min "0"
-                , HtmlAttr.max "0.9"
-                , Html.Events.onInput (ChangeScale edge |> msgFromString)
-                ]
-                []
-        , fieldsetView "Rotation: "
-            <| Html.input
-                [ HtmlAttr.type_ "range"
-                , HtmlAttr.value (.rotation edge.label |> toString)
-                , HtmlAttr.step "5"
-                , HtmlAttr.min "0"
-                , HtmlAttr.max "360"
-                , Html.Events.onInput (ChangeRotation edge |> msgFromString)
-                ]
-                []
+    Html.div
+        [ HtmlAttr.style
+            [ "display" => "grid"
+            , "grid-template-columns" => "50% 50%"
+            , "grid-gap" => "10px"
+            ]
+        ]
+        [ Html.div []
+            [ fieldsetView ("X: " ++ (.translation edge.label |> Tuple.first |> toString))
+                <| Html.input
+                    [ HtmlAttr.type_ "range"
+                    , HtmlAttr.value (.translation edge.label |> Tuple.first |> toString)
+                    , HtmlAttr.step "0.05"
+                    , HtmlAttr.min "-2"
+                    , HtmlAttr.max "2"
+                    , Html.Events.onInput (TranslationX edge |> msgFromString)
+                    , sliderStyles
+                    ]
+                    []
+            , fieldsetView ("Y: " ++ (.translation edge.label |> Tuple.second |> toString))
+                <| Html.input
+                    [ HtmlAttr.type_ "range"
+                    , HtmlAttr.value (.translation edge.label |> Tuple.second |> toString)
+                    , HtmlAttr.step "0.05"
+                    , HtmlAttr.min "-2"
+                    , HtmlAttr.max "2"
+                    , Html.Events.onInput (TranslationY edge |> msgFromString)
+                    , sliderStyles
+                    ]
+                    []
+            ]
+        , Html.div []
+            [ fieldsetView ("Scale: " ++ (.scale edge.label |> toString))
+                <| Html.input
+                    [ HtmlAttr.type_ "range"
+                    , HtmlAttr.value (.scale edge.label |> toString)
+                    , HtmlAttr.step "0.01"
+                    , HtmlAttr.min "0"
+                    , HtmlAttr.max "0.9"
+                    , Html.Events.onInput (ChangeScale edge |> msgFromString)
+                    , sliderStyles
+                    ]
+                    []
+            , fieldsetView ("Rotation: " ++ (.rotation edge.label |> toString))
+                <| Html.input
+                    [ HtmlAttr.type_ "range"
+                    , HtmlAttr.value (.rotation edge.label |> toString)
+                    , HtmlAttr.step "5"
+                    , HtmlAttr.min "0"
+                    , HtmlAttr.max "360"
+                    , Html.Events.onInput (ChangeRotation edge |> msgFromString)
+                    , sliderStyles
+                    ]
+                    []
+            ]
         ]
 
 
 fieldsetView labelText child =
-    Html.fieldset []
+    Html.fieldset
+        [ HtmlAttr.style
+            [ "padding" => "0.5 em"
+            , "padding-left" => "0"
+            , "border-width" => "0"
+            ]
+        ]
         [ Html.label [] [ Html.text labelText ]
         , child
         ]
@@ -573,39 +619,73 @@ msgFromString msgConstructor =
         >> Result.withDefault NoOp
 
 
-viewNodeDetail model node =
+viewNodeDetail model ({label} as node) =
+    let
+        shapeChooser shape =
+            svg
+                [ Attr.viewBox "-1.5 -1.5 3 3"
+                , HtmlAttr.style
+                    [ "height" => "50px"
+                    ]
+                , Svg.Events.onClick <| ChangeShape node (toString shape)
+                -- , Attr.opacity <| if label.shape == shape then "1" else "0.25"
+                ]
+                [ shapeView { node | label = { label | shape = shape, opacity = 1 } }
+                    [ Attr.stroke <|
+                        if label.shape == shape then (colorToHex label.color) else  "#aaa"
+                    , Attr.strokeWidth <| if label.shape == shape then "0.15" else "0.1"
+                    , Attr.fill "rgba(0,0,0,0)"
+                    , Attr.cursor "pointer"
+                    ]
+                ]
+    in
     Html.div []
-        [ Html.fieldset []
-            [ Html.label []
-                [ Html.text "Color: "
-                , Html.input
+        [ fieldsetView ""
+            <| Html.div []
+                [ Html.input
                     [ HtmlAttr.type_ "color"
                     , HtmlAttr.value (colorToHex node.label.color)
                     , Html.Events.onInput (ChangeColor node)
+                    , HtmlAttr.style [ "height" => "40px", "width" => "40px", "margin-right" => "8px"]
                     ]
                     []
-                ]
-            ]
-        , Html.fieldset []
-            [ Html.label []
-                [ Html.text "Opacity: "
                 , Html.input
                     [ HtmlAttr.type_ "range"
                     , HtmlAttr.min "0"
                     , HtmlAttr.max "1"
-                    , HtmlAttr.step "0.05"
+                    , HtmlAttr.step "0.01"
                     , HtmlAttr.value (toString node.label.opacity)
                     , Html.Events.onInput (msgFromString (ChangeOpacity node))
+                    , sliderStyles
+                    , HtmlAttr.style
+                        [ "background" =>
+                            ( "linear-gradient(to right, rgba(0,0,0,0), "
+                                ++ colorToCssRgba node.label.color )
+                        , "width" => "80%"
+                        ]
                     ]
                     []
                 ]
-            ]
-        , Html.fieldset []
-            [ Html.button
+        -- , Html.hr [] []
+        , fieldsetView ""
+            <| Html.div []
+                [ shapeChooser Circle
+                , shapeChooser Square
+                , shapeChooser Triangle
+                ]
+        , Html.hr [] []
+        , fieldsetView ""
+            <| Html.button
                 [ Html.Events.onClick Delete
                 ]
                 [ Html.text "Delete" ]
-            ]
+        ]
+
+
+sliderStyles =
+    HtmlAttr.style
+        [ "-webkit-appearance" => "none"
+        , "height" => "2px"
         ]
 
 
@@ -786,17 +866,15 @@ viewNodeControl model node =
             , Draggable.mouseTrigger (MoveNodeControl node) DragMsg
             ]
             rect
-        , Svg.circle2d
-            [ Attr.fill (colorToHex node.label.color)
-            , Attr.opacity <| toString node.label.opacity
-            , Attr.cursor <| if MaybeEx.isNothing model.dragAction then "pointer" else ""
+        , shapeView node
+            [ Attr.cursor <| if MaybeEx.isNothing model.dragAction then "pointer" else ""
             , Svg.Events.onClick (Select (Node node.id))
             , Svg.Events.onMouseOver (MouseHover (Node node.id))
             , Svg.Events.onMouseOut MouseLeave
             ]
-            (Circle2d
-                { radius = controlSize * 3 / 8, centerPoint = centroid rect }
-            )
+                |> Svg.scaleAbout Point2d.origin (controlSize * 0.25)
+                |> Svg.placeIn (Frame2d.at (centroid rect))
+            -- (Circle2d { radius = controlSize * 3 / 8, centerPoint = centroid rect } )
         , Svg.circle2d
             [ Attr.fill "grey"
             , Attr.stroke "grey"
@@ -861,6 +939,32 @@ viewRoot model =
         |> Svg.translateBy (Vector2d (halfSize, halfSize))
 
 
+shapeView node attrs =
+    let
+        shape =
+            case node.label.shape of
+                Circle ->
+                    flip Svg.circle2d unitCircle
+
+                Square ->
+                    flip Svg.polygon2d (rectangle2d -1 -1 2 2)
+
+                Triangle ->
+                    flip Svg.triangle2d
+                        <| Triangle2d
+                            ( Point2d ( -1, -1 )
+                            , Point2d ( -1, 1 )
+                            , Point2d ( 1, -1 )
+                            )
+    in
+        shape <|
+            [ Attr.fill (colorToHex node.label.color)
+            , Attr.opacity (toString node.label.opacity)
+            -- , Svg.Events.onMouseOver ( MouseHover (StageNode node) )
+            ]
+            ++ attrs
+
+
 viewElement : Float -> Model -> Graph.NodeId -> Svg Msg
 viewElement cumulativeScale model id =
     case
@@ -874,31 +978,8 @@ viewElement cumulativeScale model id =
                 element =
                     nodeContext.node.label
 
-                parentAttrs =
-                    [ Attr.fill (colorToHex element.color)
-                    , Attr.opacity (toString element.opacity)
-                    -- , Svg.Events.onMouseOver ( MouseHover (StageNode node) )
-                    ]
-
-                parentShape =
-                    case nodeContext.node.label.shape of
-                        Circle ->
-                            flip Svg.circle2d unitCircle
-
-                        Square ->
-                            flip Svg.polygon2d (rectangle2d -1 -1 2 2)
-
-                        Triangle ->
-                            flip Svg.triangle2d
-                                <| Triangle2d
-                                    ( Point2d ( -1, -1 )
-                                    , Point2d ( -1, 1 )
-                                    , Point2d ( 1, -1 )
-                                    )
-
-
                 parent =
-                    parentShape parentAttrs
+                    shapeView nodeContext.node []
 
                 newScale transformation =
                     transformation.scale * cumulativeScale
@@ -920,7 +1001,9 @@ viewElement cumulativeScale model id =
                         |> IntDict.toList
                         |> List.map viewChild
             in
-                Svg.g [] (parent :: children)
+                Svg.g
+                    []
+                    (parent :: children)
 
         _ ->
             Svg.g [][]

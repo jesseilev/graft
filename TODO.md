@@ -7,12 +7,15 @@
 
 ## Features
 
-- [ ] { N } shape picker
+- [ ] { N } layered detail view
+- [ ] { N } deselect
+- [x] { N } shape picker
 - [ ] { N } basic zoom by clicking
 - [ ] { N } easier to grab outgoing port
 - [x] { N } detail view (rudimentary)
 - [ ] { N } nice css on detail view
 - [x] { N } Delete
+- [ ] { n } mobile friendly
 - [x] { N } better starting positions of control nodes
 - [ ] { n } starter template examples
 - [x] { n } ports above and below midpoint
@@ -26,6 +29,7 @@
 - [ ] { i } zoom and pan on stage
 - [ ] { n } direct manipulation on stage
 - [ ] { n } bezier edges
+- [ ] { n } grid background texture
 - [ ] { n } animate edge direction
 - [ ] { n } detail navigation
 - [ ] { n } user-created animations
@@ -34,6 +38,7 @@
 
 
 ## Implementation
+- [ ] { n } elm-css
 - [ ] { N } max recursive drawing depth
 - [ ] { n } use Monocle or equivalent
 - [x] { N } translation based on x,y
