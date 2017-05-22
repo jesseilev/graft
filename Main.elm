@@ -33,6 +33,7 @@ import List.Extra as ListEx
 import Maybe.Extra as MaybeEx
 
 import Graph.Extra as GraphEx
+import OpenSolid.Vector2d.Extra as Vector2dEx
 
 
 type DragAction
@@ -73,7 +74,7 @@ type Shape
 
 
 type alias Transformation =
-    { translation : (Float, Float)
+    { translation : Vector2d
     , scale : Float
     , rotation : Float
     }
@@ -104,22 +105,22 @@ init =
                 }
             ]
             [ Graph.Edge 0 1
-                { translation = ( 0, 0 )
+                { translation = Vector2d ( 0, 0 )
                 , scale = 0.5
                 , rotation = 0
                 }
             , Graph.Edge 1 0
-                { translation = ( 1, 0 )
+                { translation = Vector2d ( 1, 0 )
                 , scale = 1 / (sqrt 2)
                 , rotation = 135
                 }
             , Graph.Edge 1 2
-                { translation = ( -0.25, 0.25 )
+                { translation = Vector2d ( -0.25, 0.25 )
                 , scale = 0.25
                 , rotation = -135
                 }
             , Graph.Edge 2 0
-                { translation = ( -0.25, -0.25 )
+                { translation = Vector2d ( -0.25, -0.25 )
                 , scale = 0.25
                 , rotation = 90
                 }
@@ -324,12 +325,9 @@ update msg model =
 
         TranslationX edge newX ->
             let
-                translationUpdater =
-                    Tuple.mapFirst (\_ -> newX)
-
                 edgeUpdater ( {label} as e ) =
                     { e | label =
-                        { label | translation = translationUpdater label.translation }
+                        { label | translation = (Vector2dEx.setX newX) label.translation }
                     }
 
                 graphUpdater =
@@ -341,12 +339,9 @@ update msg model =
         TranslationY edge newY ->
             -- TODO same as TranslationX so refactor
             let
-                translationUpdater =
-                    Tuple.mapSecond (\_ -> newY)
-
                 edgeUpdater ( {label} as e ) =
                     { e | label =
-                        { label | translation = translationUpdater label.translation }
+                        { label | translation = (Vector2dEx.setY newY) label.translation }
                     }
 
                 graphUpdater =
@@ -360,7 +355,7 @@ update msg model =
 
 
 transformationEmpty =
-    { translation = (0,0)
+    { translation = Vector2d.zero
     , scale = 0.5
     , rotation = 0
     }
@@ -531,6 +526,13 @@ acceptMaybe default func =
 
 
 viewEdgeDetail model edge =
+    let
+        translationX =
+            .translation edge.label |> Vector2d.xComponent
+
+        translationY =
+            .translation edge.label |> Vector2d.yComponent
+    in
     Html.div
         [ HtmlAttr.style
             [ "display" => "grid"
@@ -539,25 +541,25 @@ viewEdgeDetail model edge =
             ]
         ]
         [ Html.div []
-            [ fieldsetView ("X: " ++ (.translation edge.label |> Tuple.first |> toString))
+            [ fieldsetView ("X: " ++ (toString translationX))
                 <| Html.input
                     [ HtmlAttr.type_ "range"
-                    , HtmlAttr.value (.translation edge.label |> Tuple.first |> toString)
+                    , HtmlAttr.value (toString translationX)
                     , HtmlAttr.step "0.05"
                     , HtmlAttr.min "-2"
                     , HtmlAttr.max "2"
-                    , Html.Events.onInput (TranslationX edge |> msgFromString)
+                    , Html.Events.onInput (TranslationX edge |> floatMsgFromString)
                     , sliderStyles
                     ]
                     []
-            , fieldsetView ("Y: " ++ (.translation edge.label |> Tuple.second |> toString))
+            , fieldsetView ("Y: " ++ (toString translationY))
                 <| Html.input
                     [ HtmlAttr.type_ "range"
-                    , HtmlAttr.value (.translation edge.label |> Tuple.second |> toString)
+                    , HtmlAttr.value (toString translationY)
                     , HtmlAttr.step "0.05"
                     , HtmlAttr.min "-2"
                     , HtmlAttr.max "2"
-                    , Html.Events.onInput (TranslationY edge |> msgFromString)
+                    , Html.Events.onInput (TranslationY edge |> floatMsgFromString)
                     , sliderStyles
                     ]
                     []
@@ -570,7 +572,7 @@ viewEdgeDetail model edge =
                     , HtmlAttr.step "0.01"
                     , HtmlAttr.min "0"
                     , HtmlAttr.max "0.9"
-                    , Html.Events.onInput (ChangeScale edge |> msgFromString)
+                    , Html.Events.onInput (ChangeScale edge |> floatMsgFromString)
                     , sliderStyles
                     ]
                     []
@@ -581,7 +583,7 @@ viewEdgeDetail model edge =
                     , HtmlAttr.step "5"
                     , HtmlAttr.min "0"
                     , HtmlAttr.max "360"
-                    , Html.Events.onInput (ChangeRotation edge |> msgFromString)
+                    , Html.Events.onInput (ChangeRotation edge |> floatMsgFromString)
                     , sliderStyles
                     ]
                     []
@@ -602,8 +604,8 @@ fieldsetView labelText child =
         ]
 
 
-msgFromString : (Float -> Msg) -> String -> Msg
-msgFromString msgConstructor =
+floatMsgFromString : (Float -> Msg) -> String -> Msg
+floatMsgFromString msgConstructor =
     String.toFloat
         >> Result.map msgConstructor
         >> Result.withDefault NoOp
@@ -652,7 +654,7 @@ viewNodeDetail model ({label} as node) =
                     , HtmlAttr.max "1"
                     , HtmlAttr.step "0.01"
                     , HtmlAttr.value (toString node.label.opacity)
-                    , Html.Events.onInput (msgFromString (ChangeOpacity node))
+                    , Html.Events.onInput (floatMsgFromString (ChangeOpacity node))
                     , sliderStyles
                     , HtmlAttr.style
                         [ "background" =>
@@ -988,10 +990,7 @@ viewElement cumulativeScale model id =
                         |> Svg.rotateAround Point2d.origin
                             (degrees transformation.rotation)
                         |> Svg.translateBy
-                            ( transformation.translation
-                                |> Vector2d
-                                -- |> vector2dFromPolar
-                            )
+                            transformation.translation
 
                 children =
                     nodeContext.outgoing
