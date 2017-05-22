@@ -37,35 +37,20 @@ import Graph.Extra as GraphEx
 
 type DragAction
     = MoveNodeControl (Graph.Node Element)
-    -- | NewEdge (Graph.Node Element) Point2d
     | EdgeChangeEndNode (Graph.Edge Transformation) Point2d
-    -- | EdgeChangeStartpoint Graph.NodeId Graph.NodeId
-    -- | MoveElement Graph.NodeId
     | Pan
 
 
--- type Id
---     = ElementSet Graph.NodeId
---     | Element Graph.NodeId (List Graph.NodeId)
---     | NodeControl Graph.NodeId
---     | EdgeControl Graph.NodeId Graph.NodeId
-
-
 type Selectable
-    = StageNode (Graph.Node Element)
-    | Node Graph.NodeId
+    = Node Graph.NodeId
     | Edge Graph.NodeId Graph.NodeId
-    | Arrowhead (Graph.Edge Transformation)
-    | ArrowTail (Graph.Edge Transformation)
-    | Incoming (Graph.Node Element)
-    | Outgoing (Graph.Node Element)
 
 
 type alias Model =
     { graph : Graph Element Transformation
     , rootId : Graph.NodeId
     , zoomScale : Float
-    , stageCenter : Point2d
+    , panOffset : Vector2d
     , drag : Draggable.State DragAction
     , dragAction : Maybe DragAction
     , hoverItem : Maybe Selectable
@@ -140,7 +125,7 @@ init =
                 }
             ]
     , zoomScale = 1
-    , stageCenter = Point2d ( rootSize / 2, rootSize / 2 )
+    , panOffset = Vector2d ( rootSize / 2, rootSize / 2 )
     , drag = Draggable.init
     , dragAction = Nothing
     , hoverItem = Nothing
@@ -183,10 +168,7 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
         ZoomIn point ->
-            { model
-                | zoomScale = model.zoomScale * 1.05
-                -- , stageCenter = point
-            } ! []
+            { model | zoomScale = model.zoomScale * 1.05 } ! []
 
         ZoomOut ->
             { model | zoomScale = model.zoomScale / 1.05 } ! []
@@ -265,7 +247,7 @@ update msg model =
                         { model | dragAction = Just dragAction } ! []
 
                 Just Pan ->
-                    { model | stageCenter = Point2d.translateBy vec model.stageCenter } ! []
+                    { model | panOffset = Vector2d.sum vec model.panOffset } ! []
 
                 _ ->
                     model ! []
@@ -951,7 +933,7 @@ viewRoot model =
     let halfSize = rootSize / 2 in
     lazy (viewElement 1 model) model.rootId
         |> Svg.scaleAbout Point2d.origin (halfSize * 0.75 * model.zoomScale)
-        |> Svg.translateBy (Vector2d << Point2d.coordinates <| model.stageCenter)
+        |> Svg.translateBy model.panOffset
 
 
 shapeView node attrs =
