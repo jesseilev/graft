@@ -22,15 +22,15 @@ import OpenSolid.Direction2d as Direction2d
 import OpenSolid.Polygon2d as Polygon2d
 import OpenSolid.BoundingBox2d as BoundingBox2d
 import OpenSolid.Frame2d as Frame2d
--- import Transformer2D exposing (Transformation)
 import Color.Convert exposing (..)
-import Graph as Graph exposing (Graph)
+import Graph as Graph
 import IntDict
 import Draggable
 import Draggable.Events as DragEvents
 import Keyboard.Extra as KeyEx
 import List.Extra as ListEx
 import Maybe.Extra as MaybeEx
+import Monocle.Lens as Lens
 
 import Graph.Extra as GraphEx
 import OpenSolid.Vector2d.Extra as Vector2dEx
@@ -38,59 +38,6 @@ import OpenSolid.Extra exposing (..)
 import Types exposing (..)
 import View
 
-
-init : Model
-init =
-    { rootId = 0
-    , graph =
-        Graph.fromNodesAndEdges
-            [ Graph.Node 0
-                { color = Color.rgb 100 0 200
-                , opacity = 0.5
-                , shape = Triangle
-                , controlLocation = Point2d (300,0)
-                }
-            , Graph.Node 1
-                { color = Color.rgb 0 40 60
-                , opacity = 0.25
-                , shape = Square
-                , controlLocation = Point2d (120, 120)
-                }
-            , Graph.Node 2
-                { color = Color.rgb 200 100 0
-                , opacity = 0.5
-                , shape = Circle
-                , controlLocation = Point2d (210, 240)
-                }
-            ]
-            [ Graph.Edge 0 1
-                { translation = Vector2d ( 0, 0 )
-                , scale = 0.5
-                , rotation = 0
-                }
-            , Graph.Edge 1 0
-                { translation = Vector2d ( 1, 0 )
-                , scale = 1 / (sqrt 2)
-                , rotation = 135
-                }
-            , Graph.Edge 1 2
-                { translation = Vector2d ( -0.25, 0.25 )
-                , scale = 0.25
-                , rotation = -135
-                }
-            , Graph.Edge 2 0
-                { translation = Vector2d ( -0.25, -0.25 )
-                , scale = 0.25
-                , rotation = 90
-                }
-            ]
-    , zoomScale = 1
-    , panOffset = Vector2d ( View.stageSize / 2, View.stageSize / 2 )
-    , drag = Draggable.init
-    , dragAction = Nothing
-    , hoverItem = Nothing
-    , selectedItem = Nothing
-    }
 
 
 -- UPDATE
@@ -199,98 +146,50 @@ update msg model =
                 _ ->
                     update NoOp model
 
-        ChangeColor node colorStr ->
-            let
-                stringToColor =
-                    Result.withDefault Color.black << hexToColor
-
-                updateLabel ({label} as n) =
-                    { n | label = { label | color = (stringToColor colorStr) } }
-            in
-                { model
-                    | graph =
-                        GraphEx.updateNode node.id updateLabel model.graph
-                } ! []
+        ChangeColor node hexStr ->
+            let color = hexStr |> hexToColor >> Result.withDefault Color.black in
+            updateNode node.id (nodeLensColor.set color) model ! []
 
         ChangeOpacity node opacity ->
-            let
-                updateLabel ({label} as n) =
-                    { n | label = { label | opacity = opacity } }
-            in
-                { model
-                    | graph =
-                        GraphEx.updateNode node.id updateLabel model.graph
-                } ! []
+            updateNode node.id (nodeLensOpacity.set opacity) model ! []
 
         ChangeShape node shapeStr ->
-            let
-                updateLabel ({label} as n) =
-                    { n | label = { label | shape = shape } }
+            let shape = shapeStr |> shapeFromString >> Result.withDefault Square in
+            updateNode node.id (nodeLensShape.set shape) model ! []
 
-                shape =
-                    case shapeStr of
-                        "Circle" -> Circle
-                        "Triangle" -> Triangle
-                        _ -> Square
-            in
-                { model
-                    | graph =
-                        GraphEx.updateNode node.id updateLabel model.graph
-                } ! []
+        ChangeScale {from, to} newScale ->
+            updateEdge from to (edgeLensScale.set newScale) model ! []
 
-        ChangeScale edge newScale ->
-            let
-                edgeUpdater ( {label} as e ) =
-                    { e | label = { label | scale = newScale } }
+        ChangeRotation {from, to} newRotation ->
+            updateEdge from to (edgeLensRotation.set newRotation) model ! []
 
-                graphUpdater =
-                    GraphEx.updateEdge edge.from edge.to edgeUpdater
-            in
-                { model | graph = graphUpdater model.graph } ! []
+        TranslationX {from, to} newX ->
+            let setX = Lens.modify edgeLensTranslation (Vector2dEx.setX newX) in
+            updateEdge from to setX model ! []
 
-        ChangeRotation edge newRotation ->
-            let
-                edgeUpdater ( {label} as e ) =
-                    { e | label = { label | rotation = newRotation } }
-
-                graphUpdater =
-                    GraphEx.updateEdge edge.from edge.to edgeUpdater
-            in
-                { model | graph = graphUpdater model.graph } ! []
-
-        TranslationX edge newX ->
-            let
-                edgeUpdater ( {label} as e ) =
-                    { e | label =
-                        { label | translation = (Vector2dEx.setX newX) label.translation }
-                    }
-
-                graphUpdater =
-                    GraphEx.updateEdge edge.from edge.to edgeUpdater
-            in
-                { model | graph = graphUpdater model.graph } ! []
-
-
-        TranslationY edge newY ->
-            -- TODO same as TranslationX so refactor
-            let
-                edgeUpdater ( {label} as e ) =
-                    { e | label =
-                        { label | translation = (Vector2dEx.setY newY) label.translation }
-                    }
-
-                graphUpdater =
-                    GraphEx.updateEdge edge.from edge.to edgeUpdater
-            in
-                { model | graph = graphUpdater model.graph } ! []
-
+        TranslationY {from, to} newY ->
+            let setY = Lens.modify edgeLensTranslation (Vector2dEx.setY newY) in
+            updateEdge from to setY model ! []
 
         _ ->
             model ! []
 
 
+updateEdge : Id -> Id -> (Edge -> Edge) -> Model -> Model
+updateEdge from to edgeUpdater =
+    Lens.modify modelLensGraph
+        (GraphEx.updateEdge from to edgeUpdater)
+
+
+updateNode : Id -> (Node -> Node) -> Model -> Model
+updateNode nodeId =
+    Lens.modify modelLensGraph << GraphEx.updateNode nodeId
+
+
+newNode : Model -> Node
 newNode model =
     Graph.Node (nextId model.graph) (Element Color.white 0.5 Circle Point2d.origin)
+
 
 newNodeContext model =
     Graph.NodeContext (newNode model) IntDict.empty IntDict.empty
@@ -344,6 +243,66 @@ subscriptions model =
         , Draggable.subscriptions DragMsg model.drag
         ]
 
+
+-- INIT
+
+
+exampleGraph : Graph
+exampleGraph =
+    Graph.fromNodesAndEdges
+        [ Graph.Node 0
+            { color = Color.rgb 100 0 200
+            , opacity = 0.5
+            , shape = Triangle
+            , controlLocation = Point2d (300,0)
+            }
+        , Graph.Node 1
+            { color = Color.rgb 0 40 60
+            , opacity = 0.25
+            , shape = Square
+            , controlLocation = Point2d (120, 120)
+            }
+        , Graph.Node 2
+            { color = Color.rgb 200 100 0
+            , opacity = 0.5
+            , shape = Circle
+            , controlLocation = Point2d (210, 240)
+            }
+        ]
+        [ Graph.Edge 0 1
+            { translation = Vector2d ( 0, 0 )
+            , scale = 0.5
+            , rotation = 0
+            }
+        , Graph.Edge 1 0
+            { translation = Vector2d ( 1, 0 )
+            , scale = 1 / (sqrt 2)
+            , rotation = 135
+            }
+        , Graph.Edge 1 2
+            { translation = Vector2d ( -0.25, 0.25 )
+            , scale = 0.25
+            , rotation = -135
+            }
+        , Graph.Edge 2 0
+            { translation = Vector2d ( -0.25, -0.25 )
+            , scale = 0.25
+            , rotation = 90
+            }
+        ]
+
+
+init : Model
+init =
+    { rootId = 0
+    , graph = exampleGraph
+    , zoomScale = 1
+    , panOffset = Vector2d ( View.stageSize / 2, View.stageSize / 2 )
+    , drag = Draggable.init
+    , dragAction = Nothing
+    , hoverItem = Nothing
+    , selectedItem = Nothing
+    }
 
 
 -- MAIN

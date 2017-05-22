@@ -8,6 +8,7 @@
     ],
     "exposed-modules": [],
     "dependencies": {
+        "arturopala/elm-monocle": "1.4.0 <= v < 2.0.0",
         "benansell/elm-geometric-transformation": "1.0.3 <= v < 2.0.0",
         "elm-community/graph": "2.0.0 <= v < 3.0.0",
         "elm-community/intdict": "2.0.0 <= v < 3.0.0",
