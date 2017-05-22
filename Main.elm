@@ -153,7 +153,6 @@ type Msg
     | ChangeRotation (Graph.Edge Transformation) Float
     | TranslationX (Graph.Edge Transformation) Float
     | TranslationY (Graph.Edge Transformation) Float
-    | Zoomba Point2d
     | NoOp
 
 
@@ -173,10 +172,6 @@ update msg model =
 
         ZoomOut ->
             { model | zoomScale = model.zoomScale / 1.05 } ! []
-
-        Zoomba clickLocation ->
-            let _ = clickLocation |> Debug.log "click location" in
-            model ! []
 
         MouseHover graphItem ->
             { model | hoverItem = Just graphItem } ! []
