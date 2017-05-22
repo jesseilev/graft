@@ -47,18 +47,6 @@ type Selectable
     | Edge Graph.NodeId Graph.NodeId
 
 
-type alias Model =
-    { graph : Graph Element Transformation
-    , rootId : Graph.NodeId
-    , zoomScale : Float
-    , panOffset : Vector2d
-    , drag : Draggable.State DragAction
-    , dragAction : Maybe DragAction
-    , hoverItem : Maybe Selectable
-    , selectedItem : Maybe Selectable
-    }
-
-
 type alias Element =
     { color : Color
     , opacity : Float
@@ -77,6 +65,18 @@ type alias Transformation =
     { translation : Vector2d
     , scale : Float
     , rotation : Float
+    }
+
+
+type alias Model =
+    { graph : Graph Element Transformation
+    , rootId : Graph.NodeId
+    , zoomScale : Float
+    , panOffset : Vector2d
+    , drag : Draggable.State DragAction
+    , dragAction : Maybe DragAction
+    , hoverItem : Maybe Selectable
+    , selectedItem : Maybe Selectable
     }
 
 
@@ -135,7 +135,7 @@ init =
 
 
 type Msg
-    = ZoomIn Point2d
+    = ZoomIn
     | ZoomOut
     | MouseHover Selectable
     | MouseLeave
@@ -168,7 +168,7 @@ dragConfig =
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        ZoomIn point ->
+        ZoomIn ->
             { model | zoomScale = model.zoomScale * 1.05 } ! []
 
         ZoomOut ->
@@ -411,7 +411,7 @@ subscriptions model =
         [ Keyboard.presses
             (\code ->
                 case KeyEx.fromCode code |> Debug.log "key code" of
-                    KeyEx.Equals -> ZoomIn Point2d.origin
+                    KeyEx.Equals -> ZoomIn
                     KeyEx.Minus -> ZoomOut
                     KeyEx.CharZ -> Delete
                     _ -> NoOp
@@ -463,11 +463,11 @@ viewStage model =
                 [ "height" => "100%"
                 , "width" => "100%"
                 ]
-            , Html.Events.on "click"
-                ( Decode.map
-                    (ZoomIn << Point2d.translateBy (Vector2d (-rootSize / 2, -rootSize / 2)))
-                    clickPositionDecoder
-                )
+            , Html.Events.on "click" (Decode.succeed ZoomIn)
+                -- ( Decode.map
+                --     (ZoomIn << Point2d.translateBy (Vector2d (-rootSize / 2, -rootSize / 2)))
+                --     clickPositionDecoder
+                -- )
             , Draggable.mouseTrigger Pan DragMsg
             ]
             [ lazy viewRoot model ]
