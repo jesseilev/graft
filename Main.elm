@@ -41,7 +41,7 @@ type DragAction
     | EdgeChangeEndNode (Graph.Edge Transformation) Point2d
     -- | EdgeChangeStartpoint Graph.NodeId Graph.NodeId
     -- | MoveElement Graph.NodeId
-    -- | Pan
+    | Pan
 
 
 -- type Id
@@ -65,6 +65,7 @@ type alias Model =
     { graph : Graph Element Transformation
     , rootId : Graph.NodeId
     , zoomScale : Float
+    , stageCenter : Point2d
     , drag : Draggable.State DragAction
     , dragAction : Maybe DragAction
     , hoverItem : Maybe Selectable
@@ -139,6 +140,7 @@ init =
                 }
             ]
     , zoomScale = 1
+    , stageCenter = Point2d ( rootSize / 2, rootSize / 2 )
     , drag = Draggable.init
     , dragAction = Nothing
     , hoverItem = Nothing
@@ -147,7 +149,7 @@ init =
 
 
 type Msg
-    = ZoomIn
+    = ZoomIn Point2d
     | ZoomOut
     | MouseHover Selectable
     | MouseLeave
@@ -165,7 +167,7 @@ type Msg
     | ChangeRotation (Graph.Edge Transformation) Float
     | TranslationX (Graph.Edge Transformation) Float
     | TranslationY (Graph.Edge Transformation) Float
-    | Zoomba Decode.Value
+    | Zoomba Point2d
     | NoOp
 
 
@@ -177,26 +179,20 @@ dragConfig =
         ]
 
 
-dragItem dragAction =
-    case dragAction of
-        MoveNodeControl node ->
-            Node node.id
-
-        EdgeChangeEndNode edge _ ->
-            Edge edge.from edge.to
-
-
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        ZoomIn ->
-            { model | zoomScale = model.zoomScale * 1.05 } ! []
+        ZoomIn point ->
+            { model
+                | zoomScale = model.zoomScale * 1.05
+                -- , stageCenter = point
+            } ! []
 
         ZoomOut ->
             { model | zoomScale = model.zoomScale / 1.05 } ! []
 
-        Zoomba jsonStr ->
-            let s = jsonStr |> Debug.log "zoomba" in 
+        Zoomba clickLocation ->
+            let _ = clickLocation |> Debug.log "click location" in
             model ! []
 
         MouseHover graphItem ->
@@ -226,10 +222,7 @@ update msg model =
                         _ ->
                             model
             in
-                { newModel
-                    | dragAction = Just dragAction
-                    -- , selectedItem = Just (dragItem dragAction)
-                } ! []
+                { newModel | dragAction = Just dragAction } ! []
 
         StopDragging ->
             let updatedModel =
@@ -270,6 +263,9 @@ update msg model =
                             EdgeChangeEndNode edge newEndPoint
                     in
                         { model | dragAction = Just dragAction } ! []
+
+                Just Pan ->
+                    { model | stageCenter = Point2d.translateBy vec model.stageCenter } ! []
 
                 _ ->
                     model ! []
@@ -438,7 +434,7 @@ subscriptions model =
         [ Keyboard.presses
             (\code ->
                 case KeyEx.fromCode code |> Debug.log "key code" of
-                    KeyEx.Equals -> ZoomIn
+                    KeyEx.Equals -> ZoomIn Point2d.origin
                     KeyEx.Minus -> ZoomOut
                     KeyEx.CharZ -> Delete
                     _ -> NoOp
@@ -490,10 +486,22 @@ viewStage model =
                 [ "height" => "100%"
                 , "width" => "100%"
                 ]
-            , Html.Events.on "click" (Decode.map Zoomba Decode.value)
+            , Html.Events.on "click"
+                ( Decode.map
+                    (ZoomIn << Point2d.translateBy (Vector2d (-rootSize / 2, -rootSize / 2)))
+                    clickPositionDecoder
+                )
+            , Draggable.mouseTrigger Pan DragMsg
             ]
             [ lazy viewRoot model ]
         ]
+
+
+clickPositionDecoder : Decoder Point2d
+clickPositionDecoder =
+    Decode.map2 (\x y -> Point2d ( toFloat x, toFloat y ))
+        (Decode.field "offsetX" Decode.int)
+        (Decode.field "offsetY" Decode.int)
 
 
 viewControls : Model -> Html Msg
@@ -641,12 +649,19 @@ viewNodeDetail model ({label} as node) =
     in
     Html.div []
         [ fieldsetView ""
-            <| Html.div []
+            <| Html.div
+                [ HtmlAttr.style
+                    [ "display" => "grid"
+                    , "grid-template-columns" => "25% 75%"
+                    , "grid-gap" => "10px"
+                    , "align-items" => "center"
+                    ]
+                ]
                 [ Html.input
                     [ HtmlAttr.type_ "color"
                     , HtmlAttr.value (colorToHex node.label.color)
                     , Html.Events.onInput (ChangeColor node)
-                    , HtmlAttr.style [ "height" => "40px", "width" => "40px", "margin-right" => "8px"]
+                    , HtmlAttr.style [ "height" => "40px", "width" => "100%", "margin-right" => "8px"]
                     ]
                     []
                 , Html.input
@@ -661,7 +676,7 @@ viewNodeDetail model ({label} as node) =
                         [ "background" =>
                             ( "linear-gradient(to right, rgba(0,0,0,0), "
                                 ++ colorToCssRgba node.label.color )
-                        , "width" => "80%"
+                        , "width" => "100%"
                         ]
                     ]
                     []
@@ -936,7 +951,7 @@ viewRoot model =
     let halfSize = rootSize / 2 in
     lazy (viewElement 1 model) model.rootId
         |> Svg.scaleAbout Point2d.origin (halfSize * 0.75 * model.zoomScale)
-        |> Svg.translateBy (Vector2d (halfSize, halfSize))
+        |> Svg.translateBy (Vector2d << Point2d.coordinates <| model.stageCenter)
 
 
 shapeView node attrs =
