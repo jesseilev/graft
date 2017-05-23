@@ -8,6 +8,7 @@
     ],
     "exposed-modules": [],
     "dependencies": {
+        "Fresheyeball/elm-font-awesome": "2.0.2 <= v < 3.0.0",
         "arturopala/elm-monocle": "1.4.0 <= v < 2.0.0",
         "benansell/elm-geometric-transformation": "1.0.3 <= v < 2.0.0",
         "elm-community/graph": "2.0.0 <= v < 3.0.0",
@@ -22,6 +23,7 @@
         "eskimoblood/elm-color-extra": "5.0.0 <= v < 6.0.0",
         "hoelzro/elm-drag": "2.0.0 <= v < 3.0.0",
         "ir4y/elm-dnd": "2.0.0 <= v < 3.0.0",
+        "myrho/elm-round": "1.0.2 <= v < 2.0.0",
         "norpan/elm-html5-drag-drop": "1.1.0 <= v < 2.0.0",
         "ohanhi/keyboard-extra": "3.0.2 <= v < 4.0.0",
         "opensolid/geometry": "1.1.0 <= v < 2.0.0",

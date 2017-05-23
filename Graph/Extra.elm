@@ -6,6 +6,7 @@ import List.Extra as ListEx
 import Maybe.Extra as MaybeEx
 
 
+
 getEdge : Graph.NodeId -> Graph.NodeId -> Graph n e -> Maybe (Graph.Edge e)
 getEdge from to =
     Graph.edges >> ListEx.find (edgeEqualsFromTo from to)

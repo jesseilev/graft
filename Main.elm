@@ -82,6 +82,7 @@ update msg model =
                     case dragAction of
                         EdgeChangeEndNode edge _ ->
                             updateGraph (insertTemporaryNewNodeAndEdge edge)
+                                >> (\m -> { m | selectedItem = Just (Edge edge.from edge.to) })
 
                         _ ->
                             identity
@@ -107,8 +108,6 @@ update msg model =
                                 { model
                                     | graph =
                                         GraphEx.updateEdges replaceOldEdge model.graph
-                                    , selectedItem =
-                                        Just (Edge updatedEdge.from updatedEdge.to)
                                 }
 
                         _ ->
@@ -189,7 +188,8 @@ updateNode nodeId =
 
 newNode : Model -> Node
 newNode model =
-    Graph.Node (nextId model.graph) (Element Color.white 0.5 Circle Point2d.origin)
+    Graph.Node (nextId model.graph)
+        (Element Color.white 0.5 Circle (Point2d (300, 400)))
 
 
 newNodeContext model =
@@ -266,7 +266,7 @@ exampleGraph =
         , Graph.Node 2
             { color = Color.rgb 200 100 0
             , opacity = 0.5
-            , shape = Circle
+            , shape = HalfWedge
             , controlLocation = Point2d (210, 240)
             }
         ]
@@ -283,7 +283,7 @@ exampleGraph =
         , Graph.Edge 1 2
             { translation = Vector2d ( -0.25, 0.25 )
             , scale = 0.25
-            , rotation = -135
+            , rotation = 135
             }
         , Graph.Edge 2 0
             { translation = Vector2d ( -0.25, -0.25 )
@@ -302,7 +302,7 @@ init =
     , drag = Draggable.init
     , dragAction = Nothing
     , hoverItem = Nothing
-    , selectedItem = Nothing
+    , selectedItem = Just (Node 2)
     }
 
 

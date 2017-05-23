@@ -31,6 +31,7 @@ import Draggable.Events as DragEvents
 import Keyboard.Extra as KeyEx
 import List.Extra as ListEx
 import Maybe.Extra as MaybeEx
+import Round as Format
 
 import Graph.Extra as GraphEx
 import OpenSolid.Vector2d.Extra as Vector2dEx
@@ -59,18 +60,77 @@ root model =
 viewStage : Model -> Html Msg
 viewStage model =
     Html.section
-        [ HtmlAttr.style [ "background" => "grey", "cursor" => "pointer" ] ]
+        [ HtmlAttr.style
+            [ "display" => "grid"
+            , "grid-template-rows" => "1fr 50px" -- TODO htf does this work
+            , "height" => "100%"
+            ]
+        ]
         [ svg
             [ Attr.viewBox <| svgViewBoxString stageSize stageSize
-            , HtmlAttr.style [ "height" => "100%", "width" => "100%"]
+            , HtmlAttr.style
+                [
+                "grid-column" => "1 / 2"
+                ,
+                "grid-row" => "1 / 3"
+                ,
+                "background" => "grey"
+                ,
+                "cursor" =>
+                    "move"
+                    -- if model.dragAction == Just Pan then "-webkit-grabbing" else "-webkit-grab"
+                ,
+                "width" => "100%"
+                ,
+                "height" => "100%"
+                ]
             , Draggable.mouseTrigger Pan DragMsg
-            , Html.Events.on "click" (Decode.succeed ZoomIn)
+            , Svg.Events.onMouseUp StopDragging
+            -- , Html.Events.on "click" (Decode.succeed ZoomIn)
                 -- ( Decode.map
                 --     (ZoomIn << Point2d.translateBy (Vector2d (-stageSize / 2, -stageSize / 2)))
                 --     clickPositionDecoder
                 -- )
             ]
-            [ lazy viewRootElement model ]
+            [ lazy viewRootElement model
+            ]
+        , Html.div
+            [ HtmlAttr.style
+                [ "grid-row" => "2"
+                , "grid-column" => "1"
+                -- , "background" => "rgba(200, 100, 200, 0.5)"
+                , "padding" => "8px"
+                , "padding-top" => "0"
+                , "display" => "grid"
+                , "grid-template-columns" => "30px 30px 1fr"
+                , "grid-gap" => "10px"
+                , "align-items" => "end"
+                , "justify-items" => "stretch"
+                ]
+            ]
+            [ Html.button
+                [ Html.Events.onClick ZoomIn
+                , HtmlAttr.style
+                    [ "font-size" => "20px"
+                    , "background" => "rgba(0,0,0,0)"
+                    , "color" => "white"
+                    , "border" => "2px solid white"
+                    , "grid-column" => "1"
+                    ]
+                ]
+                [ Html.text "+" ]
+            , Html.button
+                [ Html.Events.onClick ZoomOut
+                , HtmlAttr.style
+                    [ "font-size" => "20px"
+                    , "background" => "rgba(0,0,0,0)"
+                    , "color" => "white"
+                    , "border" => "2px solid white"
+                    , "grid-column" => "2"
+                    ]
+                ]
+                [ Html.text "-" ]
+            ]
         ]
 
 
@@ -150,6 +210,10 @@ viewGraph model =
                     [ "background" => "#eee"
                     , "height" => "100%"
                     , "width" => "100%"
+                    , "cursor" =>
+                        case model.dragAction of
+                            Just _ -> "-webkit-grabbing"
+                            _ -> "default"
                     ]
                 -- , Svg.Events.onClick Deselect
                 ]
@@ -171,10 +235,10 @@ viewNode model node =
 
         isBeingDraggedTo =
             case model.dragAction of
-                Just (EdgeChangeEndNode _ _) -> isHoveringOverBox
+                Just (EdgeChangeEndNode _ _) -> isHoveringOverBox || isHoveringOverShape
                 _ -> False
 
-        rect =
+        box =
             nodeControlRect node
 
         inboundEdgePort =
@@ -185,44 +249,45 @@ viewNode model node =
     in
     Svg.g
         [ Attr.opacity <| if isSelected then "1" else "0.5"
-        , Svg.Events.onMouseOver (StartHover (NodeBox node.id))
-        , Svg.Events.onMouseOut StopHover
         ]
         [ Svg.polygon2d
             [ Attr.fill "#ccc"
-            , Attr.cursor <| if MaybeEx.isNothing model.dragAction then "move" else ""
+            , Attr.cursor <|
+                if MaybeEx.isNothing model.dragAction then "-webkit-grab" else ""
             , Attr.stroke "grey"
             , Attr.strokeWidth <|
-                if isHoveringOverBox || isBeingDraggedTo || isSelected then "2px" else "0"
+                if isHoveringOverShape || isBeingDraggedTo || isSelected then "2px" else "0"
             , Draggable.mouseTrigger (MoveNodeControl node) DragMsg
+            , Svg.Events.onMouseOver (StartHover (NodeBox node.id))
+            , Svg.Events.onMouseOut StopHover
             ]
-            rect
+            box
         , shapeView node
             [ Attr.cursor <| if MaybeEx.isNothing model.dragAction then "pointer" else ""
             , Svg.Events.onClick (Select (Node node.id))
-            -- , Svg.Events.onMouseOver (StartHover (NodeShape node.id))
-            -- , Svg.Events.onMouseOut StopHover
+            , Svg.Events.onMouseOver (StartHover (NodeShape node.id))
+            , Svg.Events.onMouseOut StopHover
             ]
                 |> Svg.scaleAbout Point2d.origin (controlSize * 0.25)
-                |> Svg.placeIn (Frame2d.at (centroid rect))
+                |> Svg.placeIn (Frame2d.at (centroid box))
         , Svg.circle2d
             [ Attr.fill "grey"
             , Attr.stroke "grey"
-            , Attr.strokeWidth <| if isBeingDraggedTo then "10px" else "0"
+            , Attr.strokeWidth <| if isBeingDraggedTo then "20px" else "0"
             ]
             inboundEdgePort
         , Svg.circle2d
             [ Attr.fill "grey"
             , Attr.stroke "grey"
             , Attr.strokeWidth
-                <| if model.hoverItem == Just (IncomingPort node.id) then "10px" else "0"
-            , Attr.cursor "alias"
+                <| if model.hoverItem == Just (OutgoingPort node.id) then "20px" else "0"
+            , Attr.cursor "-webkit-grab"
             , Draggable.mouseTrigger
                 ( EdgeChangeEndNode (Graph.Edge node.id -1 transformationDefault)
-                    (midRight rect)
+                    (midRight box)
                 )
                 DragMsg
-            , Svg.Events.onMouseOver (StartHover (IncomingPort node.id))
+            , Svg.Events.onMouseOver (StartHover (OutgoingPort node.id))
             , Svg.Events.onMouseOut StopHover
             ]
             outboundEdgePort
@@ -252,7 +317,7 @@ viewEdge model edge =
                 |> Maybe.map
                     ( Svg.triangle2d
                         [ Attr.fill "grey", Attr.stroke "grey"
-                        , Attr.cursor "alias"
+                        , Attr.cursor "-webkit-grab"
                         , Draggable.mouseTrigger
                             (EdgeChangeEndNode edge (arrowLocation lineSeg))
                             DragMsg
@@ -319,7 +384,8 @@ viewEdge model edge =
 viewDetailsContainer : Model -> Html Msg
 viewDetailsContainer model =
     Html.section
-        [ HtmlAttr.style [ "background" => "#ddd", "padding" => "20px"] ]
+        [ HtmlAttr.style
+            [ "background" => "#ddd", "padding" => "20px", "border-top" => "1px solid #ccc"] ]
         [ case model.selectedItem of
             Just (Node nodeId) ->
                 acceptMaybe (Html.text "") viewNodeDetail
@@ -352,15 +418,15 @@ viewEdgeDetail model edge =
             ]
         ]
         [ Html.div []
-            [ fieldsetView ("X: " ++ (toString translationX))
+            [ fieldsetView ("X: " ++ (Format.round 2 translationX))
                 <| sliderView translationX -2 2 0.05
                     [ Html.Events.onInput (TranslationX edge |> floatMsgFromString) ] []
-            , fieldsetView ("Y: " ++ (toString translationY))
+            , fieldsetView ("Y: " ++ (Format.round 2 translationY))
                 <| sliderView translationY -2 2 0.05
                     [ Html.Events.onInput (TranslationY edge |> floatMsgFromString) ] []
             ]
         , Html.div []
-            [ fieldsetView ("Scale: " ++ (.scale edge.label |> toString))
+            [ fieldsetView ("Scale: " ++ (.scale edge.label |> Format.round 2))
                 <| sliderView (.scale edge.label) 0 0.9 0.01
                     [ Html.Events.onInput (ChangeScale edge |> floatMsgFromString) ] []
             , fieldsetView ("Rotation: " ++ (.rotation edge.label |> toString))
@@ -375,24 +441,32 @@ viewNodeDetail ({label} as node) =
     let
         shapeChooser shape =
             svg
-                [ Attr.viewBox "-1.5 -1.5 3 3"
+                [ Attr.viewBox "-1.25 -1.25 2.5 2.5"
                 , HtmlAttr.style
                     [ "height" => "50px"
+                    , "margin-right" => "8px"
                     ]
                 , Svg.Events.onClick <| ChangeShape node (toString shape)
                 -- , Attr.opacity <| if label.shape == shape then "1" else "0.25"
                 ]
                 [ shapeView { node | label = { label | shape = shape, opacity = 1 } }
-                    [ Attr.stroke <|
-                        if label.shape == shape then (colorToHex label.color) else  "#aaa"
-                    , Attr.strokeWidth <| if label.shape == shape then "0.15" else "0.1"
-                    , Attr.fill "rgba(0,0,0,0)"
+                    [ Attr.stroke
+                        <| if label.shape == shape then (colorToHex label.color) else "#aaa"
+                    ,
+                    Attr.strokeWidth "0.1" --<| if label.shape == shape then "0.15" else "0.1"
+                    , Attr.fill
+                        <| if label.shape == shape then (colorToHex label.color) else "rgba(0,0,0,0)"
                     , Attr.cursor "pointer"
                     ]
                 ]
     in
     Html.div []
         [ fieldsetView ""
+            <| Html.div []
+                ( List.map shapeChooser
+                    [ Square, Triangle, Circle, HalfWedge, QuarterWedge ]
+                )
+        , fieldsetView ""
             <| Html.div
                 [ HtmlAttr.style
                     [ "display" => "grid"
@@ -419,11 +493,26 @@ viewNodeDetail ({label} as node) =
                     ]
                     []
                 ]
+        , Html.hr
+            [ HtmlAttr.style [ "border-top" => "1px solid #ccc", "border-bottom" => "0", "margin-bottom" => "20px"]]
+            []
         , fieldsetView ""
-            <| Html.div [] (List.map shapeChooser [ Circle, Square, Triangle ])
-        , Html.hr [] []
-        , fieldsetView ""
-            <| Html.button [ Html.Events.onClick Delete ] [ Html.text "Delete" ]
+            <| Html.button
+                [ Html.Events.onClick Delete
+                , HtmlAttr.style
+                    [ "height" => "40px"
+                    , "width" => "40px"
+                    , "background" => "rgba(0,0,0,0)"
+                    , "color" => "red"
+                    , "font-family" => "Sans-serif"
+                    , "font-size" => "20px"
+                    , "float" => "right"
+                    -- , "padding" => "0 10px 0 10px"
+                    , "border" => "2px solid red"
+                    , "opacity" => "0.5"
+                    ]
+                ]
+                [ Html.text "×" ]
         ]
 
 
@@ -484,6 +573,12 @@ unitShapeSvg shape =
 
         Triangle ->
             flip Svg.triangle2d unitTriangle
+
+        HalfWedge ->
+            flip Svg.polygon2d (arcToPolygon unitHalfWedge)
+
+        QuarterWedge ->
+            flip Svg.polygon2d (arcToPolygon unitQuarterWedge)
 
 
 -- VIEW HELPERS

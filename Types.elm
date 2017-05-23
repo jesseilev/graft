@@ -40,6 +40,8 @@ type Shape
     = Circle
     | Square
     | Triangle
+    | HalfWedge
+    | QuarterWedge
 
 
 type alias Transformation =
@@ -121,6 +123,8 @@ shapeFromString s =
         "Circle" -> Ok Circle
         "Triangle" -> Ok Triangle
         "Square" -> Ok Square
+        "HalfWedge" -> Ok HalfWedge
+        "QuarterWedge" -> Ok QuarterWedge
         _ -> Err ("'" ++ s ++ "' is not a valid Shape type")
 
 

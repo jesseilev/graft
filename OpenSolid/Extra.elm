@@ -9,6 +9,7 @@ import OpenSolid.Direction2d as Direction2d
 import OpenSolid.Polygon2d as Polygon2d
 import OpenSolid.BoundingBox2d as BoundingBox2d
 import OpenSolid.Frame2d as Frame2d
+import OpenSolid.Arc2d as Arc2d
 
 
 boundingBoxOrOrigin =
@@ -85,3 +86,28 @@ unitSquare =
 
 unitTriangle =
     Triangle2d ( Point2d ( -1, -1 ) , Point2d ( -1, 1 ) , Point2d ( 1, -1 ) )
+
+
+unitHalfWedge =
+    Arc2d
+        { startPoint = Point2d (-1, 0)
+        , centerPoint = Point2d.origin
+        , sweptAngle = degrees 180
+        }
+
+
+unitQuarterWedge =
+    Arc2d
+        { startPoint = Point2d (-1, 0)
+        , centerPoint = Point2d.origin
+        , sweptAngle = degrees 90
+        }
+
+
+
+arcToPolygon : Arc2d -> Polygon2d
+arcToPolygon arc =
+    let pointAlongRim = Arc2d.point arc << (flip (/) 30) << toFloat in
+    Polygon2d
+        <| [ Arc2d.endPoint arc, Arc2d.centerPoint arc, Arc2d.startPoint arc ]
+        ++ ( List.map pointAlongRim (List.range 0 30) )
