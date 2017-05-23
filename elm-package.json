@@ -1,7 +1,7 @@
 {
     "version": "1.0.0",
-    "summary": "helpful summary of your project, less than 80 characters",
-    "repository": "https://github.com/user/project.git",
+    "summary": "Compose a fractal by arranging simple geometric shapes.",
+    "repository": "https://github.com/jesseilev/graft",
     "license": "BSD3",
     "source-directories": [
         "."
