@@ -7,6 +7,123 @@ import Draggable
 import Monocle.Lens as Lens exposing (Lens)
 
 
+
+-- ALIASES
+
+type alias Graph =
+    Graph.Graph Element Transformation
+
+
+type alias Node =
+    Graph.Node Element
+
+
+type alias Edge =
+    Graph.Edge Transformation
+
+
+type alias Id =
+    Graph.NodeId
+
+
+-- GRAPH LABELS
+
+type alias Element =
+    { color : Color
+    , opacity : Float
+    , shape : Shape
+    , controlLocation : Point2d
+    }
+
+
+type Shape
+    = Circle
+    | Square
+    | Triangle
+
+
+type alias Transformation =
+    { translation : Vector2d
+    , scale : Float
+    , rotation : Float
+    }
+
+
+-- UI STATE
+
+type DragAction
+    = MoveNodeControl Node
+    | EdgeChangeEndNode Edge Point2d
+    | Pan
+
+
+type Selectable
+    = Node Id
+    | Edge Id Id
+
+
+type Hoverable
+    = NodeBox Id
+    | NodeShape Id
+    | EdgeLine Id Id
+    | EdgeArrow Id Id
+    | OutgoingPort Id
+    | IncomingPort Id
+
+
+-- MODEL
+
+type alias Model =
+    { graph : Graph
+    , rootId : Id
+    , zoomScale : Float
+    , panOffset : Vector2d
+    , drag : Draggable.State DragAction
+    , dragAction : Maybe DragAction
+    , hoverItem : Maybe Hoverable
+    , selectedItem : Maybe Selectable
+    }
+
+
+-- MSG
+
+type Msg
+    -- STAGE VIEW
+    = ZoomIn
+    | ZoomOut
+    -- GRAPH VIEW
+    | StartHover Hoverable
+    | StopHover
+    | Select Selectable
+    | Deselect
+    -- DETAIL
+    | Delete
+    | ChangeColor Node String
+    | ChangeOpacity Node Float
+    | ChangeShape Node String
+    | ChangeScale Edge Float
+    | ChangeRotation Edge Float
+    | TranslationX Edge Float
+    | TranslationY Edge Float
+    -- DRAG
+    | StartDragging DragAction
+    | StopDragging
+    | OnDragBy Vector2d
+    | DragMsg (Draggable.Msg DragAction)
+    | NoOp
+
+
+-- UTILS
+
+shapeFromString : String -> Result String Shape
+shapeFromString s =
+    case s of
+        "Circle" -> Ok Circle
+        "Triangle" -> Ok Triangle
+        "Square" -> Ok Square
+        _ -> Err ("'" ++ s ++ "' is not a valid Shape type")
+
+
 -- LENS
 
 nodeLensElement : Lens Node Element
@@ -80,110 +197,3 @@ edgeLensTranslation =
 modelLensGraph : Lens Model Graph
 modelLensGraph =
     Lens .graph (\g m -> { m | graph = g })
-
-
--- ALIASES
-
-type alias Graph =
-    Graph.Graph Element Transformation
-
-
-type alias Node =
-    Graph.Node Element
-
-
-type alias Edge =
-    Graph.Edge Transformation
-
-
-type alias Id =
-    Graph.NodeId
-
-
--- GRAPH LABELS
-
-type alias Element =
-    { color : Color
-    , opacity : Float
-    , shape : Shape
-    , controlLocation : Point2d
-    }
-
-
-type Shape
-    = Circle
-    | Square
-    | Triangle
-
-
-type alias Transformation =
-    { translation : Vector2d
-    , scale : Float
-    , rotation : Float
-    }
-
-
--- UI STATE
-
-type DragAction
-    = MoveNodeControl Node
-    | EdgeChangeEndNode Edge Point2d
-    | Pan
-
-
-type Selectable
-    = Node Id
-    | Edge Id Id
-
-
--- MODEL
-
-type alias Model =
-    { graph : Graph
-    , rootId : Id
-    , zoomScale : Float
-    , panOffset : Vector2d
-    , drag : Draggable.State DragAction
-    , dragAction : Maybe DragAction
-    , hoverItem : Maybe Selectable
-    , selectedItem : Maybe Selectable
-    }
-
-
--- MSG
-
-type Msg
-    -- STAGE VIEW
-    = ZoomIn
-    | ZoomOut
-    -- GRAPH VIEW
-    | MouseHover Selectable
-    | MouseLeave
-    | Select Selectable
-    | Deselect
-    -- DETAIL
-    | Delete
-    | ChangeColor Node String
-    | ChangeOpacity Node Float
-    | ChangeShape Node String
-    | ChangeScale Edge Float
-    | ChangeRotation Edge Float
-    | TranslationX Edge Float
-    | TranslationY Edge Float
-    -- DRAG
-    | StartDragging DragAction
-    | StopDragging
-    | OnDragBy Vector2d
-    | DragMsg (Draggable.Msg DragAction)
-    | NoOp
-
-
--- UTILS
-
-shapeFromString : String -> Result String Shape
-shapeFromString s =
-    case s of
-        "Circle" -> Ok Circle
-        "Triangle" -> Ok Triangle
-        "Square" -> Ok Square
-        _ -> Err ("'" ++ s ++ "' is not a valid Shape type")

@@ -7,11 +7,11 @@
 
 ## Features
 
-- [ ] { N } layered detail view
-- [ ] { N } deselect
+- [ ] { n } layered detail view
+- [ ] { n } deselect
 - [x] { N } shape picker
 - [ ] { N } basic zoom by clicking
-- [ ] { N } easier to grab outgoing port
+- [x] { N } easier to grab outgoing port
 - [x] { N } detail view (rudimentary)
 - [ ] { N } nice css on detail view
 - [x] { N } Delete
@@ -26,7 +26,7 @@
     - [x] { i } 'move' cursor on arrowhead
     - [ ] { i } tool palette e.g. select, resize, fill, etc
 - [x] { n } other shapes
-- [ ] { i } zoom and pan on stage
+- [x] { i } drag to pan on stage
 - [ ] { n } direct manipulation on stage
 - [ ] { n } bezier edges
 - [ ] { n } grid background texture
@@ -39,6 +39,8 @@
 
 ## Implementation
 - [ ] { n } elm-css
+- [ ] { n } culling
+- [ ] { n } use Frame2d more
 - [ ] { N } max recursive drawing depth
 - [ ] { n } use Monocle or equivalent
 - [x] { N } translation based on x,y

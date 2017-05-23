@@ -163,12 +163,15 @@ viewNode model node =
         isSelected =
             model.selectedItem == Just (Node node.id)
 
-        isHovering =
-            model.hoverItem == Just (Node node.id) && not isSelected
+        isHoveringOverShape =
+            model.hoverItem == Just (NodeShape node.id)
+
+        isHoveringOverBox =
+            model.hoverItem == Just (NodeBox node.id)
 
         isBeingDraggedTo =
             case model.dragAction of
-                Just (EdgeChangeEndNode _ _) -> isHovering
+                Just (EdgeChangeEndNode _ _) -> isHoveringOverBox
                 _ -> False
 
         rect =
@@ -182,24 +185,26 @@ viewNode model node =
     in
     Svg.g
         [ Attr.opacity <| if isSelected then "1" else "0.5"
+        , Svg.Events.onMouseOver (StartHover (NodeBox node.id))
+        , Svg.Events.onMouseOut StopHover
         ]
         [ Svg.polygon2d
             [ Attr.fill "#ccc"
             , Attr.cursor <| if MaybeEx.isNothing model.dragAction then "move" else ""
             , Attr.stroke "grey"
-            , Attr.strokeWidth <| if isHovering || isSelected then "2px" else "0"
+            , Attr.strokeWidth <|
+                if isHoveringOverBox || isBeingDraggedTo || isSelected then "2px" else "0"
             , Draggable.mouseTrigger (MoveNodeControl node) DragMsg
             ]
             rect
         , shapeView node
             [ Attr.cursor <| if MaybeEx.isNothing model.dragAction then "pointer" else ""
             , Svg.Events.onClick (Select (Node node.id))
-            , Svg.Events.onMouseOver (MouseHover (Node node.id))
-            , Svg.Events.onMouseOut MouseLeave
+            -- , Svg.Events.onMouseOver (StartHover (NodeShape node.id))
+            -- , Svg.Events.onMouseOut StopHover
             ]
                 |> Svg.scaleAbout Point2d.origin (controlSize * 0.25)
                 |> Svg.placeIn (Frame2d.at (centroid rect))
-            -- (Circle2d { radius = controlSize * 3 / 8, centerPoint = centroid rect } )
         , Svg.circle2d
             [ Attr.fill "grey"
             , Attr.stroke "grey"
@@ -208,12 +213,17 @@ viewNode model node =
             inboundEdgePort
         , Svg.circle2d
             [ Attr.fill "grey"
+            , Attr.stroke "grey"
+            , Attr.strokeWidth
+                <| if model.hoverItem == Just (IncomingPort node.id) then "10px" else "0"
             , Attr.cursor "alias"
             , Draggable.mouseTrigger
                 ( EdgeChangeEndNode (Graph.Edge node.id -1 transformationDefault)
                     (midRight rect)
                 )
                 DragMsg
+            , Svg.Events.onMouseOver (StartHover (IncomingPort node.id))
+            , Svg.Events.onMouseOut StopHover
             ]
             outboundEdgePort
         ]
@@ -276,6 +286,10 @@ viewEdge model edge =
                 _ ->
                     Nothing
 
+        chopALittleOffBothEnds : LineSegment2d -> LineSegment2d
+        chopALittleOffBothEnds lineSeg =
+            LineSegment2d.scaleAbout (LineSegment2d.midpoint lineSeg) 0.95 lineSeg
+
         edgeCount =
             Graph.edges model.graph |> List.length --|> Debug.log "edge count"
     in
@@ -286,6 +300,7 @@ viewEdge model edge =
                         ( outgoingPortLocation fromCtx.node
                         , incomingPortLocation toCtx.node
                         )
+                            |> chopALittleOffBothEnds
                     )
 
             ( Just fromCtx, _, Just endpoint ) ->
@@ -294,6 +309,7 @@ viewEdge model edge =
                         ( outgoingPortLocation fromCtx.node
                         , endpoint
                         )
+                            |> chopALittleOffBothEnds
                     )
 
             _ ->
@@ -420,7 +436,7 @@ shapeView node attrs =
     unitShapeSvg node.label.shape <|
         [ Attr.fill (colorToHex node.label.color)
         , Attr.opacity (toString node.label.opacity)
-        -- , Svg.Events.onMouseOver ( MouseHover (StageNode node) )
+        -- , Svg.Events.onMouseOver ( StartHover (StageNode node) )
         ]
         ++ attrs
 
@@ -512,7 +528,7 @@ arrowTriangle : Point2d -> Direction2d -> Triangle2d
 arrowTriangle tip direction =
     let
         back =
-            Direction2d.scaleBy (controlSize / 6) (Direction2d.flip direction)
+            Direction2d.scaleBy (controlSize / 4) (Direction2d.flip direction)
 
         left =
             Vector2d.perpendicularTo back

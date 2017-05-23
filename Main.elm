@@ -60,55 +60,59 @@ update msg model =
         ZoomOut ->
             { model | zoomScale = model.zoomScale / 1.05 } ! []
 
-        MouseHover graphItem ->
-            { model | hoverItem = Just graphItem } ! []
+        StartHover item ->
+            { model | hoverItem = Just item } ! []
 
-        MouseLeave ->
+        StopHover ->
             { model | hoverItem = Nothing } ! []
 
-        Select graphItem ->
-            { model | selectedItem = Just graphItem } ! []
+        Select item ->
+            { model | selectedItem = Just item } ! []
 
         Deselect ->
             { model | selectedItem = Nothing } ! []
 
         StartDragging dragAction ->
             let
-                newModel =
+                insertTemporaryNewNodeAndEdge newEdge =
+                    Graph.insert (newNodeContext model)
+                        >> GraphEx.insertEdge newEdge
+
+                insertTempsIfChangingEdgeEnd =
                     case dragAction of
                         EdgeChangeEndNode edge _ ->
+                            updateGraph (insertTemporaryNewNodeAndEdge edge)
+
+                        _ ->
+                            identity
+            in
+                { model | dragAction = Just dragAction }
+                    |> insertTempsIfChangingEdgeEnd
+                    |> flip (,) Cmd.none
+
+        StopDragging ->
+            let
+                updatedModel =
+                    case ( model.dragAction, model.hoverItem ) of
+                        ( Just (EdgeChangeEndNode edge endPoint)
+                        , Just (NodeBox endNodeID)
+                        ) ->
                             let
-                                insertTemps =
-                                    Graph.insert (newNodeContext model)
-                                        >> GraphEx.insertEdge edge
+                                updatedEdge =
+                                    { edge | to = endNodeID }
+
+                                replaceOldEdge =
+                                    ListEx.replaceIf (GraphEx.edgeEquals edge) updatedEdge
                             in
-                                { model | graph = insertTemps model.graph }
+                                { model
+                                    | graph =
+                                        GraphEx.updateEdges replaceOldEdge model.graph
+                                    , selectedItem =
+                                        Just (Edge updatedEdge.from updatedEdge.to)
+                                }
 
                         _ ->
                             model
-            in
-                { newModel | dragAction = Just dragAction } ! []
-
-        StopDragging ->
-            let updatedModel =
-                case ( model.dragAction, model.hoverItem ) of
-                    ( Just (EdgeChangeEndNode edge endPoint)
-                    , Just (Node endNodeID)
-                    ) ->
-                        let
-                            updatedEdge =
-                                { edge | to = endNodeID }
-
-                            replaceOldEdge =
-                                ListEx.replaceIf (GraphEx.edgeEquals edge) updatedEdge
-                        in
-                            { model
-                                | graph = GraphEx.updateEdges replaceOldEdge model.graph
-                                , selectedItem = Just (Edge updatedEdge.from updatedEdge.to)
-                            }
-
-                    _ ->
-                        model
             in
                 { updatedModel | dragAction = Nothing }
                     |> cleanupTempNodesAndEdges
@@ -119,15 +123,9 @@ update msg model =
                 Just (MoveNodeControl node) ->
                     moveNodeControl vec node model ! []
 
-                Just (EdgeChangeEndNode edge endPoint) ->
-                    let
-                        newEndPoint =
-                            endPoint |> Point2d.translateBy vec
-
-                        dragAction =
-                            EdgeChangeEndNode edge newEndPoint
-                    in
-                        { model | dragAction = Just dragAction } ! []
+                Just (EdgeChangeEndNode edge endpoint) ->
+                    let newEndpoint = Point2d.translateBy vec endpoint in
+                    { model | dragAction = Just (EdgeChangeEndNode edge newEndpoint) } ! []
 
                 Just Pan ->
                     { model | panOffset = Vector2d.sum vec model.panOffset } ! []
@@ -144,7 +142,7 @@ update msg model =
                     { model | graph = Graph.remove nodeId model.graph } ! []
 
                 _ ->
-                    update NoOp model
+                    model ! []
 
         ChangeColor node hexStr ->
             let color = hexStr |> hexToColor >> Result.withDefault Color.black in
@@ -175,15 +173,18 @@ update msg model =
             model ! []
 
 
-updateEdge : Id -> Id -> (Edge -> Edge) -> Model -> Model
-updateEdge from to edgeUpdater =
+updateGraph =
     Lens.modify modelLensGraph
-        (GraphEx.updateEdge from to edgeUpdater)
+
+
+updateEdge : Id -> Id -> (Edge -> Edge) -> Model -> Model
+updateEdge from to =
+    updateGraph << GraphEx.updateEdge from to
 
 
 updateNode : Id -> (Node -> Node) -> Model -> Model
 updateNode nodeId =
-    Lens.modify modelLensGraph << GraphEx.updateNode nodeId
+    updateGraph << GraphEx.updateNode nodeId
 
 
 newNode : Model -> Node
