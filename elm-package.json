@@ -1,7 +1,7 @@
 {
     "version": "1.0.0",
     "summary": "Compose a fractal by arranging simple geometric shapes.",
-    "repository": "https://github.com/jesseilev/graft",
+    "repository": "https://github.com/jesseilev/graft.git",
     "license": "BSD3",
     "source-directories": [
         "."
