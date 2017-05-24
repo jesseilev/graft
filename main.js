@@ -20439,7 +20439,11 @@ var _jesseilev$graft$View$fieldsetView = F2(
 							_1: {
 								ctor: '::',
 								_0: A2(_jesseilev$graft$View_ops['=>'], 'border-width', '0'),
-								_1: {ctor: '[]'}
+								_1: {
+									ctor: '::',
+									_0: A2(_jesseilev$graft$View_ops['=>'], 'margin-top', '0.5em'),
+									_1: {ctor: '[]'}
+								}
 							}
 						}
 					}),
@@ -20495,7 +20499,11 @@ var _jesseilev$graft$View$sliderView = F5(
 												_1: {
 													ctor: '::',
 													_0: A2(_jesseilev$graft$View_ops['=>'], 'height', '2px'),
-													_1: {ctor: '[]'}
+													_1: {
+														ctor: '::',
+														_0: A2(_jesseilev$graft$View_ops['=>'], 'background', '#aaa'),
+														_1: {ctor: '[]'}
+													}
 												}
 											}),
 										_1: {ctor: '[]'}
@@ -20965,15 +20973,11 @@ var _jesseilev$graft$View$viewDetailsContainer = function (model) {
 			_0: _elm_lang$html$Html_Attributes$style(
 				{
 					ctor: '::',
-					_0: A2(_jesseilev$graft$View_ops['=>'], 'background', '#ddd'),
+					_0: A2(_jesseilev$graft$View_ops['=>'], 'background', 'linear-gradient(to left, #ccc, #eee)'),
 					_1: {
 						ctor: '::',
-						_0: A2(_jesseilev$graft$View_ops['=>'], 'padding', '20px'),
-						_1: {
-							ctor: '::',
-							_0: A2(_jesseilev$graft$View_ops['=>'], 'border-top', '1px solid #ccc'),
-							_1: {ctor: '[]'}
-						}
+						_0: A2(_jesseilev$graft$View_ops['=>'], 'padding', '30px'),
+						_1: {ctor: '[]'}
 					}
 				}),
 			_1: {ctor: '[]'}
@@ -21529,11 +21533,7 @@ var _jesseilev$graft$View$viewStage = function (model) {
 						_1: {
 							ctor: '::',
 							_0: A2(_jesseilev$graft$View_ops['=>'], 'height', '100%'),
-							_1: {
-								ctor: '::',
-								_0: A2(_jesseilev$graft$View_ops['=>'], 'background', 'grey'),
-								_1: {ctor: '[]'}
-							}
+							_1: {ctor: '[]'}
 						}
 					}
 				}),
@@ -21552,17 +21552,21 @@ var _jesseilev$graft$View$viewStage = function (model) {
 						_0: _elm_lang$html$Html_Attributes$style(
 							{
 								ctor: '::',
-								_0: A2(_jesseilev$graft$View_ops['=>'], 'grid-column', '1 / 2'),
+								_0: A2(_jesseilev$graft$View_ops['=>'], 'grid-column', '1 / 3'),
 								_1: {
 									ctor: '::',
 									_0: A2(_jesseilev$graft$View_ops['=>'], 'grid-row', '1 / 3'),
 									_1: {
 										ctor: '::',
-										_0: A2(_jesseilev$graft$View_ops['=>'], 'cursor', 'move'),
+										_0: A2(_jesseilev$graft$View_ops['=>'], 'background', 'grey'),
 										_1: {
 											ctor: '::',
-											_0: A2(_jesseilev$graft$View_ops['=>'], 'height', '100%'),
-											_1: {ctor: '[]'}
+											_0: A2(_jesseilev$graft$View_ops['=>'], 'cursor', 'move'),
+											_1: {
+												ctor: '::',
+												_0: A2(_jesseilev$graft$View_ops['=>'], 'height', '100%'),
+												_1: {ctor: '[]'}
+											}
 										}
 									}
 								}
@@ -21725,7 +21729,7 @@ var _jesseilev$graft$View$root = function (model) {
 					_0: A2(_jesseilev$graft$View_ops['=>'], 'display', 'grid'),
 					_1: {
 						ctor: '::',
-						_0: A2(_jesseilev$graft$View_ops['=>'], 'grid-template-columns', '1fr 350px'),
+						_0: A2(_jesseilev$graft$View_ops['=>'], 'grid-template-columns', '1fr 370px'),
 						_1: {
 							ctor: '::',
 							_0: A2(_jesseilev$graft$View_ops['=>'], 'height', '100%'),
@@ -21735,7 +21739,11 @@ var _jesseilev$graft$View$root = function (model) {
 								_1: {
 									ctor: '::',
 									_0: A2(_jesseilev$graft$View_ops['=>'], 'color', 'grey'),
-									_1: {ctor: '[]'}
+									_1: {
+										ctor: '::',
+										_0: A2(_jesseilev$graft$View_ops['=>'], 'background', '#eee'),
+										_1: {ctor: '[]'}
+									}
 								}
 							}
 						}
@@ -21859,7 +21867,7 @@ var _jesseilev$graft$Main$init = {
 	dragAction: _elm_lang$core$Maybe$Nothing,
 	hoverItem: _elm_lang$core$Maybe$Nothing,
 	selectedItem: _elm_lang$core$Maybe$Just(
-		_jesseilev$graft$Types$Node(2))
+		A2(_jesseilev$graft$Types$Edge, 0, 1))
 };
 var _jesseilev$graft$Main$subscriptions = function (model) {
 	return _elm_lang$core$Platform_Sub$batch(

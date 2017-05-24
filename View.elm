@@ -46,10 +46,11 @@ root model =
     Html.div
         [ HtmlAttr.style
             [ "display" => "grid"
-            , "grid-template-columns" => "1fr 350px"
+            , "grid-template-columns" => "1fr 370px"
             , "height" => "100%"
             , "font-family" => "Sans-serif"
             , "color" => "grey"
+            , "background" => "#eee"
             ]
         ]
         [ lazy viewStage model
@@ -64,24 +65,25 @@ viewStage model =
             [ "display" => "grid"
             , "grid-template-rows" => "1fr 50px" -- TODO htf does this work
             , "height" => "100%"
-            , "background" => "grey"
+            -- , "justify-items" => "stretch"
+            -- , "background" => "grey"
             ]
         ]
         [ svg
             [ Attr.viewBox <| svgViewBoxString stageSize stageSize
             , HtmlAttr.style
                 [
-                "grid-column" => "1 / 2"
+                "grid-column" => "1 / 3"
                 ,
                 "grid-row" => "1 / 3"
-                -- ,
-                -- "background" => "grey"
+                ,
+                "background" => "grey"
                 ,
                 "cursor" =>
                     "move"
                     -- if model.dragAction == Just Pan then "-webkit-grabbing" else "-webkit-grab"
                 -- ,
-                -- "width" => "100%"
+                -- "width" => (Vector2d.xComponent model.panOffset |> toString)
                 ,
                 "height" => "100%"
                 ]
@@ -141,7 +143,6 @@ viewRootElement model =
     lazy (viewElement 1 model) model.rootId
         |> Svg.scaleAbout Point2d.origin (halfSize * 0.6 * model.zoomScale)
         |> Svg.translateBy model.panOffset
-
 
 viewElement : Float -> Model -> Id -> Svg Msg
 viewElement cumulativeScale model id =
@@ -208,8 +209,10 @@ viewGraph model =
                 [ Attr.viewBox <| svgViewBoxString stageSize stageSize
                 , Svg.Events.onMouseUp StopDragging
                 , HtmlAttr.style
-                    [ "background" => "#eee"
-                    , "height" => "100%"
+                    [
+                    "background" => "#eee"
+                    ,
+                    "height" => "100%"
                     , "width" => "100%"
                     , "cursor" =>
                         case model.dragAction of
@@ -389,7 +392,13 @@ viewDetailsContainer : Model -> Html Msg
 viewDetailsContainer model =
     Html.section
         [ HtmlAttr.style
-            [ "background" => "#ddd", "padding" => "20px", "border-top" => "1px solid #ccc"] ]
+            [
+            "background" => "linear-gradient(to left, #ccc, #eee)"
+            ,
+            "padding" => "30px"
+            -- , "border-top" => "1px solid #ccc"
+            ]
+        ]
         [ case model.selectedItem of
             Just (Node nodeId) ->
                 acceptMaybe (Html.text "") viewNodeDetail
@@ -547,6 +556,7 @@ sliderView value min max step attrs =
         , HtmlAttr.style
             [ "-webkit-appearance" => "none"
             , "height" => "2px"
+            , "background" => "#aaa"
             ]
         ]
         ++ attrs
@@ -559,6 +569,7 @@ fieldsetView labelText child =
             [ "padding" => "0.5 em"
             , "padding-left" => "0"
             , "border-width" => "0"
+            , "margin-top" => "0.5em"
             ]
         ]
         [ Html.label [] [ Html.text labelText ]

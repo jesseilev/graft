@@ -304,7 +304,7 @@ init =
     , drag = Draggable.init
     , dragAction = Nothing
     , hoverItem = Nothing
-    , selectedItem = Just (Node 2)
+    , selectedItem = Just (Edge 0 1)
     }
 
 
