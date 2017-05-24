@@ -55,10 +55,10 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
         ZoomIn ->
-            { model | zoomScale = model.zoomScale * 1.05 } ! []
+            { model | zoomScale = model.zoomScale * 1.1 } ! []
 
         ZoomOut ->
-            { model | zoomScale = model.zoomScale / 1.05 } ! []
+            { model | zoomScale = model.zoomScale / 1.1 } ! []
 
         StartHover item ->
             { model | hoverItem = Just item } ! []
@@ -129,7 +129,8 @@ update msg model =
                     { model | dragAction = Just (EdgeChangeEndNode edge newEndpoint) } ! []
 
                 Just Pan ->
-                    { model | panOffset = Vector2d.sum vec model.panOffset } ! []
+                    let scaledVec = Vector2d.scaleBy (1 / (View.rescale model)) (Vector2d.flip vec) in
+                    { model | panOffset = Vector2d.sum scaledVec model.panOffset } ! []
 
                 _ ->
                     model ! []

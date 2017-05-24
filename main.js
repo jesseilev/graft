@@ -21504,15 +21504,24 @@ var _jesseilev$graft$View$viewElement = F3(
 				{ctor: '[]'});
 		}
 	});
+var _jesseilev$graft$View$rescale = function (model) {
+	return ((_jesseilev$graft$View$stageSize * 0.5) * 0.6) * model.zoomScale;
+};
 var _jesseilev$graft$View$viewRootElement = function (model) {
 	var halfSize = _jesseilev$graft$View$stageSize / 2;
+	var centerVec = _opensolid$geometry$OpenSolid_Geometry_Types$Vector2d(
+		{ctor: '_Tuple2', _0: halfSize, _1: halfSize});
+	var trans = A2(
+		_elm_lang$core$Debug$log,
+		'trans',
+		A2(_opensolid$geometry$OpenSolid_Vector2d$difference, model.panOffset, centerVec));
 	return A2(
 		_opensolid$svg$OpenSolid_Svg$translateBy,
 		model.panOffset,
 		A3(
 			_opensolid$svg$OpenSolid_Svg$scaleAbout,
-			_opensolid$geometry$OpenSolid_Point2d$origin,
-			(halfSize * 0.6) * model.zoomScale,
+			A2(_opensolid$geometry$OpenSolid_Point2d$translateBy, trans, _opensolid$geometry$OpenSolid_Point2d$origin),
+			_jesseilev$graft$View$rescale(model),
 			A2(
 				_elm_lang$svg$Svg_Lazy$lazy,
 				A2(_jesseilev$graft$View$viewElement, 1, model),
@@ -22018,14 +22027,14 @@ var _jesseilev$graft$Main$update = F2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
 					_elm_lang$core$Native_Utils.update(
 						model,
-						{zoomScale: model.zoomScale * 1.05}),
+						{zoomScale: model.zoomScale * 1.1}),
 					{ctor: '[]'});
 			case 'ZoomOut':
 				return A2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
 					_elm_lang$core$Native_Utils.update(
 						model,
-						{zoomScale: model.zoomScale / 1.05}),
+						{zoomScale: model.zoomScale / 1.1}),
 					{ctor: '[]'});
 			case 'StartHover':
 				return A2(
@@ -22162,12 +22171,16 @@ var _jesseilev$graft$Main$update = F2(
 									}),
 								{ctor: '[]'});
 						default:
+							var scaledVec = A2(
+								_opensolid$geometry$OpenSolid_Vector2d$scaleBy,
+								1 / _jesseilev$graft$View$rescale(model),
+								_opensolid$geometry$OpenSolid_Vector2d$flip(_p17));
 							return A2(
 								_elm_lang$core$Platform_Cmd_ops['!'],
 								_elm_lang$core$Native_Utils.update(
 									model,
 									{
-										panOffset: A2(_opensolid$geometry$OpenSolid_Vector2d$sum, _p17, model.panOffset)
+										panOffset: A2(_opensolid$geometry$OpenSolid_Vector2d$sum, scaledVec, model.panOffset)
 									}),
 								{ctor: '[]'});
 					}

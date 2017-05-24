@@ -1,4 +1,4 @@
-module View exposing (root, stageSize)
+module View exposing (root, stageSize, rescale)
 
 import Color exposing (Color)
 import Html exposing (Html)
@@ -139,10 +139,28 @@ viewStage model =
 
 viewRootElement : Model -> Svg Msg
 viewRootElement model =
-    let halfSize = stageSize / 2 in
+    let
+        halfSize =
+            stageSize / 2
+
+        centerVec =
+            Vector2d (halfSize, halfSize)
+
+        trans =
+            Vector2d.difference model.panOffset centerVec
+                |> Debug.log "trans"
+
+    in
     lazy (viewElement 1 model) model.rootId
-        |> Svg.scaleAbout Point2d.origin (halfSize * 0.6 * model.zoomScale)
+        |> Svg.scaleAbout
+            ( Point2d.translateBy trans Point2d.origin )
+            (rescale model)
         |> Svg.translateBy model.panOffset
+
+
+rescale model =
+    stageSize * 0.5 * 0.6 * model.zoomScale
+
 
 viewElement : Float -> Model -> Id -> Svg Msg
 viewElement cumulativeScale model id =
