@@ -93,14 +93,16 @@ update msg model =
 
         StopDragging ->
             let
+                destinationNodeId =
+                     model.hoverItem |> Maybe.andThen getHoverableNodeId
+
                 updatedModel =
-                    case ( model.dragAction, model.hoverItem ) of
-                        ( Just (EdgeChangeEndNode edge endPoint)
-                        , Just (NodeBox endNodeID)
-                        ) ->
+                    case ( model.dragAction, destinationNodeId ) of
+                        ( Just (EdgeChangeEndNode edge endPoint), Just endNodeId ) ->
                             let
+                                updatedEdge : Edge
                                 updatedEdge =
-                                    { edge | to = endNodeID }
+                                    { edge | to = endNodeId }
 
                                 replaceOldEdge =
                                     ListEx.replaceIf (GraphEx.edgeEquals edge) updatedEdge
@@ -196,7 +198,7 @@ newNodeContext model =
     Graph.NodeContext (newNode model) IntDict.empty IntDict.empty
 
 nextId =
-    Graph.nodeIdRange >> Maybe.map Tuple.second >> Maybe.map ((+) 1) >> Maybe.withDefault 0
+    Graph.nodeIdRange >> Maybe.map (Tuple.second >> ((+) 1)) >> Maybe.withDefault 0
 
 
 cleanupTempNodesAndEdges : Model -> Model

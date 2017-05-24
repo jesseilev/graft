@@ -19842,6 +19842,21 @@ var _jesseilev$graft$OpenSolid_Extra$midBottom = function (_p7) {
 		_jesseilev$graft$OpenSolid_Extra$edgeBottom(_p7));
 };
 
+var _jesseilev$graft$Types$getHoverableNodeId = function (hoverable) {
+	var _p0 = hoverable;
+	switch (_p0.ctor) {
+		case 'NodeBox':
+			return _elm_lang$core$Maybe$Just(_p0._0);
+		case 'NodeShape':
+			return _elm_lang$core$Maybe$Just(_p0._0);
+		case 'IncomingPort':
+			return _elm_lang$core$Maybe$Just(_p0._0);
+		case 'OutgoingPort':
+			return _elm_lang$core$Maybe$Just(_p0._0);
+		default:
+			return _elm_lang$core$Maybe$Nothing;
+	}
+};
 var _jesseilev$graft$Types$modelLensGraph = A2(
 	_arturopala$elm_monocle$Monocle_Lens$Lens,
 	function (_) {
@@ -19965,8 +19980,8 @@ var _jesseilev$graft$Types$Triangle = {ctor: 'Triangle'};
 var _jesseilev$graft$Types$Square = {ctor: 'Square'};
 var _jesseilev$graft$Types$Circle = {ctor: 'Circle'};
 var _jesseilev$graft$Types$shapeFromString = function (s) {
-	var _p0 = s;
-	switch (_p0) {
+	var _p1 = s;
+	switch (_p1) {
 		case 'Circle':
 			return _elm_lang$core$Result$Ok(_jesseilev$graft$Types$Circle);
 		case 'Triangle':
@@ -21493,7 +21508,7 @@ var _jesseilev$graft$View$viewRootElement = function (model) {
 		A3(
 			_opensolid$svg$OpenSolid_Svg$scaleAbout,
 			_opensolid$geometry$OpenSolid_Point2d$origin,
-			(halfSize * 0.75) * model.zoomScale,
+			(halfSize * 0.6) * model.zoomScale,
 			A2(
 				_elm_lang$svg$Svg_Lazy$lazy,
 				A2(_jesseilev$graft$View$viewElement, 1, model),
@@ -21514,7 +21529,11 @@ var _jesseilev$graft$View$viewStage = function (model) {
 						_1: {
 							ctor: '::',
 							_0: A2(_jesseilev$graft$View_ops['=>'], 'height', '100%'),
-							_1: {ctor: '[]'}
+							_1: {
+								ctor: '::',
+								_0: A2(_jesseilev$graft$View_ops['=>'], 'background', 'grey'),
+								_1: {ctor: '[]'}
+							}
 						}
 					}
 				}),
@@ -21539,19 +21558,11 @@ var _jesseilev$graft$View$viewStage = function (model) {
 									_0: A2(_jesseilev$graft$View_ops['=>'], 'grid-row', '1 / 3'),
 									_1: {
 										ctor: '::',
-										_0: A2(_jesseilev$graft$View_ops['=>'], 'background', 'grey'),
+										_0: A2(_jesseilev$graft$View_ops['=>'], 'cursor', 'move'),
 										_1: {
 											ctor: '::',
-											_0: A2(_jesseilev$graft$View_ops['=>'], 'cursor', 'move'),
-											_1: {
-												ctor: '::',
-												_0: A2(_jesseilev$graft$View_ops['=>'], 'width', '100%'),
-												_1: {
-													ctor: '::',
-													_0: A2(_jesseilev$graft$View_ops['=>'], 'height', '100%'),
-													_1: {ctor: '[]'}
-												}
-											}
+											_0: A2(_jesseilev$graft$View_ops['=>'], 'height', '100%'),
+											_1: {ctor: '[]'}
 										}
 									}
 								}
@@ -21714,7 +21725,7 @@ var _jesseilev$graft$View$root = function (model) {
 					_0: A2(_jesseilev$graft$View_ops['=>'], 'display', 'grid'),
 					_1: {
 						ctor: '::',
-						_0: A2(_jesseilev$graft$View_ops['=>'], 'grid-template-columns', '60% 40%'),
+						_0: A2(_jesseilev$graft$View_ops['=>'], 'grid-template-columns', '1fr 350px'),
 						_1: {
 							ctor: '::',
 							_0: A2(_jesseilev$graft$View_ops['=>'], 'height', '100%'),
@@ -21932,14 +21943,16 @@ var _jesseilev$graft$Main$nextId = function (_p3) {
 		0,
 		A2(
 			_elm_lang$core$Maybe$map,
-			F2(
-				function (x, y) {
-					return x + y;
-				})(1),
-			A2(
-				_elm_lang$core$Maybe$map,
-				_elm_lang$core$Tuple$second,
-				_elm_community$graph$Graph$nodeIdRange(_p3))));
+			function (_p4) {
+				return A2(
+					F2(
+						function (x, y) {
+							return x + y;
+						}),
+					1,
+					_elm_lang$core$Tuple$second(_p4));
+			},
+			_elm_community$graph$Graph$nodeIdRange(_p3)));
 };
 var _jesseilev$graft$Main$newNode = function (model) {
 	return A2(
@@ -21963,24 +21976,24 @@ var _jesseilev$graft$Main$newNodeContext = function (model) {
 var _jesseilev$graft$Main$updateGraph = _arturopala$elm_monocle$Monocle_Lens$modify(_jesseilev$graft$Types$modelLensGraph);
 var _jesseilev$graft$Main$updateEdge = F2(
 	function (from, to) {
-		return function (_p4) {
+		return function (_p5) {
 			return _jesseilev$graft$Main$updateGraph(
-				A3(_jesseilev$graft$Graph_Extra$updateEdge, from, to, _p4));
+				A3(_jesseilev$graft$Graph_Extra$updateEdge, from, to, _p5));
 		};
 	});
 var _jesseilev$graft$Main$updateNode = function (nodeId) {
-	return function (_p5) {
+	return function (_p6) {
 		return _jesseilev$graft$Main$updateGraph(
-			A2(_jesseilev$graft$Graph_Extra$updateNode, nodeId, _p5));
+			A2(_jesseilev$graft$Graph_Extra$updateNode, nodeId, _p6));
 	};
 };
 var _jesseilev$graft$Main$dragConfig = _zaboco$elm_draggable$Draggable$customConfig(
 	{
 		ctor: '::',
 		_0: _zaboco$elm_draggable$Draggable_Events$onDragBy(
-			function (_p6) {
+			function (_p7) {
 				return _jesseilev$graft$Types$OnDragBy(
-					_opensolid$geometry$OpenSolid_Geometry_Types$Vector2d(_p6));
+					_opensolid$geometry$OpenSolid_Geometry_Types$Vector2d(_p7));
 			}),
 		_1: {
 			ctor: '::',
@@ -21990,8 +22003,8 @@ var _jesseilev$graft$Main$dragConfig = _zaboco$elm_draggable$Draggable$customCon
 	});
 var _jesseilev$graft$Main$update = F2(
 	function (msg, model) {
-		var _p7 = msg;
-		switch (_p7.ctor) {
+		var _p8 = msg;
+		switch (_p8.ctor) {
 			case 'ZoomIn':
 				return A2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
@@ -22012,7 +22025,7 @@ var _jesseilev$graft$Main$update = F2(
 					_elm_lang$core$Native_Utils.update(
 						model,
 						{
-							hoverItem: _elm_lang$core$Maybe$Just(_p7._0)
+							hoverItem: _elm_lang$core$Maybe$Just(_p8._0)
 						}),
 					{ctor: '[]'});
 			case 'StopHover':
@@ -22028,7 +22041,7 @@ var _jesseilev$graft$Main$update = F2(
 					_elm_lang$core$Native_Utils.update(
 						model,
 						{
-							selectedItem: _elm_lang$core$Maybe$Just(_p7._0)
+							selectedItem: _elm_lang$core$Maybe$Just(_p8._0)
 						}),
 					{ctor: '[]'});
 			case 'Deselect':
@@ -22039,35 +22052,35 @@ var _jesseilev$graft$Main$update = F2(
 						{selectedItem: _elm_lang$core$Maybe$Nothing}),
 					{ctor: '[]'});
 			case 'StartDragging':
-				var _p12 = _p7._0;
+				var _p13 = _p8._0;
 				var insertTemporaryNewNodeAndEdge = function (newEdge) {
-					return function (_p8) {
+					return function (_p9) {
 						return A2(
 							_jesseilev$graft$Graph_Extra$insertEdge,
 							newEdge,
 							A2(
 								_elm_community$graph$Graph$insert,
 								_jesseilev$graft$Main$newNodeContext(model),
-								_p8));
+								_p9));
 					};
 				};
 				var insertTempsIfChangingEdgeEnd = function () {
-					var _p9 = _p12;
-					if (_p9.ctor === 'EdgeChangeEndNode') {
-						var _p11 = _p9._0;
-						return function (_p10) {
+					var _p10 = _p13;
+					if (_p10.ctor === 'EdgeChangeEndNode') {
+						var _p12 = _p10._0;
+						return function (_p11) {
 							return function (m) {
 								return _elm_lang$core$Native_Utils.update(
 									m,
 									{
 										selectedItem: _elm_lang$core$Maybe$Just(
-											A2(_jesseilev$graft$Types$Edge, _p11.from, _p11.to))
+											A2(_jesseilev$graft$Types$Edge, _p12.from, _p12.to))
 									});
 							}(
 								A2(
 									_jesseilev$graft$Main$updateGraph,
-									insertTemporaryNewNodeAndEdge(_p11),
-									_p10));
+									insertTemporaryNewNodeAndEdge(_p12),
+									_p11));
 						};
 					} else {
 						return _elm_lang$core$Basics$identity;
@@ -22084,19 +22097,20 @@ var _jesseilev$graft$Main$update = F2(
 						_elm_lang$core$Native_Utils.update(
 							model,
 							{
-								dragAction: _elm_lang$core$Maybe$Just(_p12)
+								dragAction: _elm_lang$core$Maybe$Just(_p13)
 							})));
 			case 'StopDragging':
+				var destinationNodeId = A2(_elm_lang$core$Maybe$andThen, _jesseilev$graft$Types$getHoverableNodeId, model.hoverItem);
 				var updatedModel = function () {
-					var _p13 = {ctor: '_Tuple2', _0: model.dragAction, _1: model.hoverItem};
-					if (((((_p13.ctor === '_Tuple2') && (_p13._0.ctor === 'Just')) && (_p13._0._0.ctor === 'EdgeChangeEndNode')) && (_p13._1.ctor === 'Just')) && (_p13._1._0.ctor === 'NodeBox')) {
-						var _p14 = _p13._0._0._0;
+					var _p14 = {ctor: '_Tuple2', _0: model.dragAction, _1: destinationNodeId};
+					if ((((_p14.ctor === '_Tuple2') && (_p14._0.ctor === 'Just')) && (_p14._0._0.ctor === 'EdgeChangeEndNode')) && (_p14._1.ctor === 'Just')) {
+						var _p15 = _p14._0._0._0;
 						var updatedEdge = _elm_lang$core$Native_Utils.update(
-							_p14,
-							{to: _p13._1._0._0});
+							_p15,
+							{to: _p14._1._0});
 						var replaceOldEdge = A2(
 							_elm_community$list_extra$List_Extra$replaceIf,
-							_jesseilev$graft$Graph_Extra$edgeEquals(_p14),
+							_jesseilev$graft$Graph_Extra$edgeEquals(_p15),
 							updatedEdge);
 						return _elm_lang$core$Native_Utils.update(
 							model,
@@ -22119,24 +22133,24 @@ var _jesseilev$graft$Main$update = F2(
 							updatedModel,
 							{dragAction: _elm_lang$core$Maybe$Nothing})));
 			case 'OnDragBy':
-				var _p16 = _p7._0;
-				var _p15 = model.dragAction;
-				if (_p15.ctor === 'Just') {
-					switch (_p15._0.ctor) {
+				var _p17 = _p8._0;
+				var _p16 = model.dragAction;
+				if (_p16.ctor === 'Just') {
+					switch (_p16._0.ctor) {
 						case 'MoveNodeControl':
 							return A2(
 								_elm_lang$core$Platform_Cmd_ops['!'],
-								A3(_jesseilev$graft$Main$moveNodeControl, _p16, _p15._0._0, model),
+								A3(_jesseilev$graft$Main$moveNodeControl, _p17, _p16._0._0, model),
 								{ctor: '[]'});
 						case 'EdgeChangeEndNode':
-							var newEndpoint = A2(_opensolid$geometry$OpenSolid_Point2d$translateBy, _p16, _p15._0._1);
+							var newEndpoint = A2(_opensolid$geometry$OpenSolid_Point2d$translateBy, _p17, _p16._0._1);
 							return A2(
 								_elm_lang$core$Platform_Cmd_ops['!'],
 								_elm_lang$core$Native_Utils.update(
 									model,
 									{
 										dragAction: _elm_lang$core$Maybe$Just(
-											A2(_jesseilev$graft$Types$EdgeChangeEndNode, _p15._0._0, newEndpoint))
+											A2(_jesseilev$graft$Types$EdgeChangeEndNode, _p16._0._0, newEndpoint))
 									}),
 								{ctor: '[]'});
 						default:
@@ -22145,7 +22159,7 @@ var _jesseilev$graft$Main$update = F2(
 								_elm_lang$core$Native_Utils.update(
 									model,
 									{
-										panOffset: A2(_opensolid$geometry$OpenSolid_Vector2d$sum, _p16, model.panOffset)
+										panOffset: A2(_opensolid$geometry$OpenSolid_Vector2d$sum, _p17, model.panOffset)
 									}),
 								{ctor: '[]'});
 					}
@@ -22156,16 +22170,16 @@ var _jesseilev$graft$Main$update = F2(
 						{ctor: '[]'});
 				}
 			case 'DragMsg':
-				return A3(_zaboco$elm_draggable$Draggable$update, _jesseilev$graft$Main$dragConfig, _p7._0, model);
+				return A3(_zaboco$elm_draggable$Draggable$update, _jesseilev$graft$Main$dragConfig, _p8._0, model);
 			case 'Delete':
-				var _p17 = model.selectedItem;
-				if ((_p17.ctor === 'Just') && (_p17._0.ctor === 'Node')) {
+				var _p18 = model.selectedItem;
+				if ((_p18.ctor === 'Just') && (_p18._0.ctor === 'Node')) {
 					return A2(
 						_elm_lang$core$Platform_Cmd_ops['!'],
 						_elm_lang$core$Native_Utils.update(
 							model,
 							{
-								graph: A2(_elm_community$graph$Graph$remove, _p17._0._0, model.graph)
+								graph: A2(_elm_community$graph$Graph$remove, _p18._0._0, model.graph)
 							}),
 						{ctor: '[]'});
 				} else {
@@ -22175,17 +22189,17 @@ var _jesseilev$graft$Main$update = F2(
 						{ctor: '[]'});
 				}
 			case 'ChangeColor':
-				var color = function (_p18) {
+				var color = function (_p19) {
 					return A2(
 						_elm_lang$core$Result$withDefault,
 						_elm_lang$core$Color$black,
-						_eskimoblood$elm_color_extra$Color_Convert$hexToColor(_p18));
-				}(_p7._1);
+						_eskimoblood$elm_color_extra$Color_Convert$hexToColor(_p19));
+				}(_p8._1);
 				return A2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
 					A3(
 						_jesseilev$graft$Main$updateNode,
-						_p7._0.id,
+						_p8._0.id,
 						_jesseilev$graft$Types$nodeLensColor.set(color),
 						model),
 					{ctor: '[]'});
@@ -22194,22 +22208,22 @@ var _jesseilev$graft$Main$update = F2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
 					A3(
 						_jesseilev$graft$Main$updateNode,
-						_p7._0.id,
-						_jesseilev$graft$Types$nodeLensOpacity.set(_p7._1),
+						_p8._0.id,
+						_jesseilev$graft$Types$nodeLensOpacity.set(_p8._1),
 						model),
 					{ctor: '[]'});
 			case 'ChangeShape':
-				var shape = function (_p19) {
+				var shape = function (_p20) {
 					return A2(
 						_elm_lang$core$Result$withDefault,
 						_jesseilev$graft$Types$Square,
-						_jesseilev$graft$Types$shapeFromString(_p19));
-				}(_p7._1);
+						_jesseilev$graft$Types$shapeFromString(_p20));
+				}(_p8._1);
 				return A2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
 					A3(
 						_jesseilev$graft$Main$updateNode,
-						_p7._0.id,
+						_p8._0.id,
 						_jesseilev$graft$Types$nodeLensShape.set(shape),
 						model),
 					{ctor: '[]'});
@@ -22218,9 +22232,9 @@ var _jesseilev$graft$Main$update = F2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
 					A4(
 						_jesseilev$graft$Main$updateEdge,
-						_p7._0.from,
-						_p7._0.to,
-						_jesseilev$graft$Types$edgeLensScale.set(_p7._1),
+						_p8._0.from,
+						_p8._0.to,
+						_jesseilev$graft$Types$edgeLensScale.set(_p8._1),
 						model),
 					{ctor: '[]'});
 			case 'ChangeRotation':
@@ -22228,28 +22242,28 @@ var _jesseilev$graft$Main$update = F2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
 					A4(
 						_jesseilev$graft$Main$updateEdge,
-						_p7._0.from,
-						_p7._0.to,
-						_jesseilev$graft$Types$edgeLensRotation.set(_p7._1),
+						_p8._0.from,
+						_p8._0.to,
+						_jesseilev$graft$Types$edgeLensRotation.set(_p8._1),
 						model),
 					{ctor: '[]'});
 			case 'TranslationX':
 				var setX = A2(
 					_arturopala$elm_monocle$Monocle_Lens$modify,
 					_jesseilev$graft$Types$edgeLensTranslation,
-					_jesseilev$graft$OpenSolid_Vector2d_Extra$setX(_p7._1));
+					_jesseilev$graft$OpenSolid_Vector2d_Extra$setX(_p8._1));
 				return A2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
-					A4(_jesseilev$graft$Main$updateEdge, _p7._0.from, _p7._0.to, setX, model),
+					A4(_jesseilev$graft$Main$updateEdge, _p8._0.from, _p8._0.to, setX, model),
 					{ctor: '[]'});
 			case 'TranslationY':
 				var setY = A2(
 					_arturopala$elm_monocle$Monocle_Lens$modify,
 					_jesseilev$graft$Types$edgeLensTranslation,
-					_jesseilev$graft$OpenSolid_Vector2d_Extra$setY(_p7._1));
+					_jesseilev$graft$OpenSolid_Vector2d_Extra$setY(_p8._1));
 				return A2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
-					A4(_jesseilev$graft$Main$updateEdge, _p7._0.from, _p7._0.to, setY, model),
+					A4(_jesseilev$graft$Main$updateEdge, _p8._0.from, _p8._0.to, setY, model),
 					{ctor: '[]'});
 			default:
 				return A2(

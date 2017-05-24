@@ -46,7 +46,7 @@ root model =
     Html.div
         [ HtmlAttr.style
             [ "display" => "grid"
-            , "grid-template-columns" => "60% 40%"
+            , "grid-template-columns" => "1fr 350px"
             , "height" => "100%"
             , "font-family" => "Sans-serif"
             , "color" => "grey"
@@ -64,6 +64,7 @@ viewStage model =
             [ "display" => "grid"
             , "grid-template-rows" => "1fr 50px" -- TODO htf does this work
             , "height" => "100%"
+            , "background" => "grey"
             ]
         ]
         [ svg
@@ -73,14 +74,14 @@ viewStage model =
                 "grid-column" => "1 / 2"
                 ,
                 "grid-row" => "1 / 3"
-                ,
-                "background" => "grey"
+                -- ,
+                -- "background" => "grey"
                 ,
                 "cursor" =>
                     "move"
                     -- if model.dragAction == Just Pan then "-webkit-grabbing" else "-webkit-grab"
-                ,
-                "width" => "100%"
+                -- ,
+                -- "width" => "100%"
                 ,
                 "height" => "100%"
                 ]
@@ -138,7 +139,7 @@ viewRootElement : Model -> Svg Msg
 viewRootElement model =
     let halfSize = stageSize / 2 in
     lazy (viewElement 1 model) model.rootId
-        |> Svg.scaleAbout Point2d.origin (halfSize * 0.75 * model.zoomScale)
+        |> Svg.scaleAbout Point2d.origin (halfSize * 0.6 * model.zoomScale)
         |> Svg.translateBy model.panOffset
 
 
@@ -235,8 +236,11 @@ viewNode model node =
 
         isBeingDraggedTo =
             case model.dragAction of
-                Just (EdgeChangeEndNode _ _) -> isHoveringOverBox || isHoveringOverShape
-                _ -> False
+                Just (EdgeChangeEndNode _ _) ->
+                    isHoveringOverBox || isHoveringOverShape
+
+                _ ->
+                    False
 
         box =
             nodeControlRect node
