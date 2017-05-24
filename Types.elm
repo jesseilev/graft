@@ -201,3 +201,14 @@ edgeLensTranslation =
 modelLensGraph : Lens Model Graph
 modelLensGraph =
     Lens .graph (\g m -> { m | graph = g })
+
+
+
+getHoverableNodeId : Hoverable -> Maybe Id
+getHoverableNodeId hoverable =
+    case hoverable of
+        NodeBox id -> Just id
+        NodeShape id -> Just id
+        IncomingPort id -> Just id
+        OutgoingPort id -> Just id
+        _ -> Nothing
